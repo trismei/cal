@@ -4105,7 +4105,8 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
 
   /* ================= keyboard ================= */
   document.addEventListener('keydown', e => {
-    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
+    const ae = document.activeElement;
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(ae?.tagName || '') || !!ae?.isContentEditable || !!e.target?.isContentEditable;
     if (e.key === 'Escape') {
       if (calDrag && calDrag.active) return endCalDrag(0, 0, true);
       if (motMenu) { motMenu = null; return renderHome(); }
