@@ -1877,11 +1877,12 @@ tr:hover .sh-open, .sh-open:focus-visible { opacity: 1; }
 }
 
 /* script: breathing room between paragraphs */
-.script-editor > div { margin: 0 0 12px; }
+.script-editor > div { margin: 0 0 18px; }
 .script-editor > div:last-child { margin-bottom: 0; }
-.script-editor h3 { margin: 22px 0 8px; }
-.script-editor h4 { margin: 18px 0 6px; }
-.script-editor ul, .script-editor ol { margin: 4px 0 12px; }
-.script-editor li { margin: 0 0 6px; }
-.script-editor hr { margin: 22px 0; }
+.script-editor h3 { margin: 28px 0 10px; }
+.script-editor h4 { margin: 24px 0 8px; }
+.script-editor ul, .script-editor ol { margin: 4px 0 18px; }
+.script-editor li { margin: 0 0 9px; }
+.script-editor hr { margin: 28px 0; }
 .script-editor > :first-child { margin-top: 0; }
+.script-editor { line-height: 1.8; }
