@@ -673,10 +673,64 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
     });
     if (!SPONSOR_TYPES.some(([v]) => v === post.sponsor)) post.sponsor = '';
     if (!FMT[post.format]) post.format = 'video';
+    post.scriptHtml = post.scriptHtml ? cleanScriptHtml(String(post.scriptHtml)) : textToScriptHtml(post.script);
     post.brand = post.brand == null ? '' : String(post.brand);
     const dsc = post.disclosed && typeof post.disclosed === 'object' ? post.disclosed : {};
     post.disclosed = Object.fromEntries(DISCLOSE_ITEMS.map(([k]) => [k, !!dsc[k]]));
     return post;
+  }
+
+  /* ---- script formatting: keep bold / italic / underline + line breaks, drop everything else ---- */
+  const SKIP_TAGS = /^(SCRIPT|STYLE|META|LINK|TITLE|HEAD|TEMPLATE|IFRAME|OBJECT|EMBED|SVG|IMG|VIDEO|AUDIO|CANVAS|INPUT|BUTTON|SELECT|TEXTAREA)$/;
+  const BLOCK_TAGS = /^(P|DIV|H[1-6]|LI|BLOCKQUOTE|PRE|UL|OL|TABLE|TR|SECTION|ARTICLE|HEADER|FOOTER)$/;
+  function textToScriptHtml(t) { return esc(String(t || '')).replace(/\r?\n/g, '<br>'); }
+  function cleanScriptHtml(html) {
+    if (!html || typeof DOMParser === 'undefined') return '';
+    const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+    let out = '';
+    const br = () => { if (out && !out.endsWith('<br>')) out += '<br>'; };
+    const walk = (node, f, pre) => {
+      if (node.nodeType === 3) {
+        let t = node.nodeValue.replace(/ /g, ' ');
+        if (!pre) t = t.replace(/\s+/g, ' ');
+        if (!t) return;
+        let s = pre ? esc(t).replace(/\r?\n/g, '<br>') : esc(t);
+        if (f.u) s = `<u>${s}</u>`;
+        if (f.i) s = `<i>${s}</i>`;
+        if (f.b) s = `<b>${s}</b>`;
+        out += s;
+        return;
+      }
+      if (node.nodeType !== 1) return;
+      const tag = node.tagName.toUpperCase();
+      if (SKIP_TAGS.test(tag)) return;
+      if (tag === 'BR') { out += '<br>'; return; }
+      const st = node.style || {};
+      const g = { ...f };
+      if (/^(B|STRONG|H[1-6])$/.test(tag)) g.b = true;
+      if (/^(I|EM)$/.test(tag)) g.i = true;
+      if (/^(U|INS)$/.test(tag)) g.u = true;
+      const fw = (st.fontWeight || '').toLowerCase();
+      if (fw) g.b = fw === 'bold' || fw === 'bolder' || Number(fw) >= 600;
+      if (st.fontStyle) g.i = st.fontStyle === 'italic' || st.fontStyle === 'oblique';
+      const td = (st.textDecorationLine || st.textDecoration || '').toLowerCase();
+      if (td.includes('underline')) g.u = true;
+      const block = BLOCK_TAGS.test(tag);
+      if (block) br();
+      if (tag === 'LI') out += '• ';
+      node.childNodes.forEach(n => walk(n, g, pre || tag === 'PRE'));
+      if (block) br();
+    };
+    doc.body.childNodes.forEach(n => walk(n, {}, false));
+    return out
+      .replace(/<\/(b|i|u)><\1>/g, '')
+      .replace(/(<br>\s*){3,}/g, '<br><br>')
+      .replace(/^(\s|<br>)+|(\s|<br>)+$/g, '');
+  }
+  function scriptHtmlToText(html) {
+    const d = document.createElement('div');
+    d.innerHTML = String(html || '').replace(/<br>/g, '\n');
+    return d.textContent;
   }
 
   function mkCollab(c = {}) {
@@ -2299,20 +2353,55 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
     $('#line-chips').innerHTML = state.lines[drawerCat].map((l, i) => `<button class="line-chip" data-insert-line="${drawerCat}|${i}">${esc(l)}</button>`).join('') || '<p class="muted small-text">no lines here yet. add some in the lines tab</p>';
   }
 
+  let scriptRange = null;
+  function scriptMeta() {
+    const ed = $('#f-script');
+    const words = (ed.textContent.match(/\S+/g) || []).length;
+    ed.classList.toggle('is-empty', !ed.textContent.trim());
+    const secs = Math.round(words / 2.5); // ~150 words a minute on camera
+    $('#script-count').textContent = words ? `${words} words · ~${secs < 60 ? secs + 's' : Math.floor(secs / 60) + 'm ' + String(secs % 60).padStart(2, '0') + 's'}` : '';
+  }
+  function scriptToolState() {
+    document.querySelectorAll('.script-bar [data-fmt]').forEach(b => {
+      if (b.dataset.fmt === 'removeFormat') return;
+      let on = false;
+      try { on = document.queryCommandState(b.dataset.fmt); } catch (e) { /* ignore */ }
+      b.classList.toggle('on', on);
+    });
+  }
+  function saveScript() {
+    scriptMeta();
+    const p = find(openId);
+    if (!p) return;
+    const html = cleanScriptHtml($('#f-script').innerHTML);
+    if (html === p.scriptHtml) return;
+    p.scriptHtml = html;
+    p.script = scriptHtmlToText(html);
+    p.isExample = false;
+    touch(p);
+    persist();
+    markSaved();
+    scheduleRender();
+  }
+
   function insertLine(text) {
-    const el = lineTarget === 'hook' ? $('#f-hook') : $('#f-script');
     if (lineTarget === 'hook') {
+      const el = $('#f-hook');
       el.value = el.value.trim() ? `${el.value.trim()} ${text}` : text;
+      el.dispatchEvent(new Event('input'));
     } else {
-      const pos = typeof el.selectionStart === 'number' ? el.selectionStart : el.value.length;
-      const before = el.value.slice(0, pos), after = el.value.slice(pos);
-      const pre = before && !before.endsWith('\n') ? '\n' : '';
-      const post = after && !after.startsWith('\n') ? '\n' : '';
-      el.value = before + pre + text + post + after;
-      const np = (before + pre + text).length;
-      try { el.setSelectionRange(np, np); } catch (e) { /* ignore */ }
+      const ed = $('#f-script');
+      if (scriptRange && ed.contains(scriptRange.startContainer)) {
+        ed.focus();
+        const sel = getSelection(); sel.removeAllRanges(); sel.addRange(scriptRange);
+        const r = document.createRange(); r.selectNodeContents(ed); r.setEnd(scriptRange.startContainer, scriptRange.startOffset);
+        const before = r.toString();
+        document.execCommand('insertHTML', false, (before && !/\s$/.test(before) ? ' ' : '') + esc(text) + ' ');
+      } else {
+        ed.innerHTML = (ed.textContent.trim() ? ed.innerHTML.replace(/(<br>)+$/, '') + '<br>' : '') + esc(text);
+      }
+      saveScript();
     }
-    el.dispatchEvent(new Event('input'));
     toast(`added to your ${lineTarget} ✦`);
   }
 
@@ -2909,14 +2998,18 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   /* ================= post panel ================= */
   const FIELDS = {
     title: '#f-title', insteadOf: '#f-instead', tryAngle: '#f-try', outline: '#f-outline',
-    hook: '#f-hook', script: '#f-script', date: '#f-date', notes: '#f-notes', brand: '#f-brand',
+    hook: '#f-hook', date: '#f-date', notes: '#f-notes', brand: '#f-brand',
   };
 
   function fillPanel(p) {
     Object.entries(FIELDS).forEach(([k, sel]) => { const el = $(sel); if (el.value !== p[k]) el.value = p[k]; });
     autoGrow($('#f-title'));
-    $('#f-status').innerHTML = STATUSES.map(s =>
-      `<button class="${p.status === s.id ? 'on' : ''}" data-set-status="${s.id}">${s.emoji}<span>${s.label}</span></button>`).join('');
+    autoGrow($('#f-hook'));
+    $('#f-script').innerHTML = p.scriptHtml;
+    scriptRange = null;
+    scriptMeta();
+    $('#f-status').innerHTML = STATUSES.map(s => `<option value="${s.id}" ${p.status === s.id ? 'selected' : ''}>${s.emoji} ${s.label}</option>`).join('');
+    $('#f-status').dataset.s = p.status;
     renderPillarPicker(p);
     renderNoteLink(p);
     renderSponsor(p);
@@ -2927,21 +3020,24 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   }
 
   function renderFormat(p) {
-    $('#f-format').innerHTML = FORMATS.map(([id, icon, label]) =>
-      `<button class="chip ${p.format === id ? 'on' : ''}" data-format="${id}">${icon} ${label}</button>`).join('');
+    $('#f-format').innerHTML = FORMATS.map(([id, icon, label]) => `<option value="${id}" ${p.format === id ? 'selected' : ''}>${icon} ${label}</option>`).join('');
   }
 
   function renderSponsor(p) {
-    $('#f-sponsor').innerHTML = SPONSOR_TYPES.map(([v, l]) => `<button class="chip ${p.sponsor === v ? 'on' : ''}" data-sponsor="${v}">${l}</button>`).join('');
+    $('#f-sponsor').innerHTML = SPONSOR_TYPES.map(([v, l]) => `<option value="${v}" ${p.sponsor === v ? 'selected' : ''}>${v ? l : 'no'}</option>`).join('');
+    $('#f-sponsor').classList.toggle('muted-sel', !p.sponsor);
     $('#f-sponsor-box').hidden = !p.sponsor;
     $('#f-disclose').innerHTML = DISCLOSE_ITEMS.map(([k, l]) =>
       `<label class="check"><input type="checkbox" data-disclose="${k}" ${p.disclosed[k] ? 'checked' : ''}><span>${esc(l)}</span></label>`).join('');
   }
 
   function renderPillarPicker(p) {
-    $('#f-pillar').innerHTML = state.pillars.map(x =>
-      `<button class="chip ${p.pillar === x ? 'on' : ''}" data-pillar="${esc(x)}">${esc(x)}</button>`).join('') +
-      '<button class="chip ghost-chip" id="add-pillar-btn" title="add a new series">+ series</button>';
+    const sel = $('#f-pillar');
+    sel.innerHTML = `<option value="" ${!p.pillar ? 'selected' : ''}>no series</option>` +
+      state.pillars.map(x => `<option value="${esc(x)}" ${p.pillar === x ? 'selected' : ''}>${esc(seriesShort(x))}</option>`).join('') +
+      '<option value="__new">+ new series…</option>';
+    sel.classList.toggle('muted-sel', !p.pillar);
+    sel.closest('.prop').style.setProperty('--sc', p.pillar ? seriesColor(p.pillar) : 'transparent');
     $('#f-tagline').textContent = state.taglines[p.pillar] || '';
   }
 
@@ -2996,7 +3092,7 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
       touch(p);
       persist();
       markSaved();
-      if (k === 'title') autoGrow(el);
+      if (k === 'title' || k === 'hook') autoGrow(el);
       if (k === 'notes') renderNoteLink(p);
       scheduleRender();
     };
@@ -3005,12 +3101,72 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   });
   $('#f-title').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#f-instead').focus(); } });
   $('#f-hook').addEventListener('focus', () => { lineTarget = 'hook'; });
-  $('#f-script').addEventListener('focus', () => { lineTarget = 'script'; });
+  $('#f-hook').addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); }); // one line that wraps
+
+  const scriptEd = $('#f-script');
+  try { document.execCommand('styleWithCSS', false, false); } catch (e) { /* ignore */ }
+  scriptEd.addEventListener('focus', () => { lineTarget = 'script'; });
+  scriptEd.addEventListener('input', saveScript);
+  scriptEd.addEventListener('paste', e => {
+    const cd = e.clipboardData;
+    if (!cd) return;
+    e.preventDefault();
+    const html = cd.getData('text/html');
+    const ins = html ? cleanScriptHtml(html) : textToScriptHtml(cd.getData('text/plain'));
+    if (ins) document.execCommand('insertHTML', false, ins);
+    saveScript();
+  });
+  scriptEd.addEventListener('drop', e => e.preventDefault());
+  document.addEventListener('selectionchange', () => {
+    const sel = getSelection();
+    if (!sel.rangeCount || !scriptEd.contains(sel.anchorNode)) return;
+    scriptRange = sel.getRangeAt(0).cloneRange();
+    scriptToolState();
+  });
+  document.querySelectorAll('.script-bar [data-fmt]').forEach(b => {
+    b.addEventListener('mousedown', e => e.preventDefault()); // keep the selection in the editor
+    b.addEventListener('click', () => {
+      if (document.activeElement !== scriptEd) {
+        scriptEd.focus();
+        if (scriptRange) { const s = getSelection(); s.removeAllRanges(); s.addRange(scriptRange); }
+      }
+      document.execCommand(b.dataset.fmt, false, null);
+      if (b.dataset.fmt === 'removeFormat') {
+        ['bold', 'italic', 'underline'].forEach(c => { if (document.queryCommandState(c)) document.execCommand(c, false, null); });
+      }
+      saveScript();
+      scriptToolState();
+    });
+  });
 
   $('#f-posted').addEventListener('change', e => {
     const p = find(openId);
     if (!p || !isDate(e.target.value)) { if (p) e.target.value = p.postedAt; return; }
     p.postedAt = e.target.value; touch(p); persist(); markSaved(); scheduleRender();
+  });
+
+  $('#f-status').addEventListener('change', e => setStatus(find(openId), e.target.value));
+  $('#f-format').addEventListener('change', e => {
+    const p = find(openId);
+    if (!p) return;
+    p.format = e.target.value; touch(p); persist(); markSaved(); scheduleRender();
+  });
+  $('#f-sponsor').addEventListener('change', e => {
+    const p = find(openId);
+    if (!p) return;
+    p.sponsor = e.target.value; touch(p); persist(); markSaved(); renderSponsor(p); scheduleRender();
+  });
+  $('#f-pillar').addEventListener('change', async e => {
+    const p = find(openId);
+    if (!p) return;
+    let v = e.target.value;
+    if (v === '__new') {
+      const name = await ask({ title: 'new series', ok: 'add', input: { placeholder: 'series name' } });
+      if (!name) return renderPillarPicker(p);
+      v = state.pillars.find(x => x.toLowerCase() === name.toLowerCase());
+      if (!v) { state.pillars.push(name); v = name; toast(`added series: ${name}`); }
+    }
+    p.pillar = v; p.isExample = false; touch(p); persist(); markSaved(); renderPillarPicker(p); scheduleRender();
   });
 
   $('#clear-date').addEventListener('click', () => {

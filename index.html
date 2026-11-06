@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-title" content="content cal">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=202611061920">
+  <link rel="stylesheet" href="styles.css?v=202611062155">
 </head>
 <body>
 
@@ -97,23 +97,27 @@
     <div class="panel-body">
       <textarea id="f-title" class="title-input" rows="1" placeholder="post title"></textarea>
 
-      <div class="seg" id="f-status"></div>
-      <div class="posted-row" id="posted-row" hidden>
-        <span class="muted small-text">posted on</span>
-        <input type="date" id="f-posted" aria-label="posted on">
+      <div class="props">
+        <label class="prop"><span>status</span><select id="f-status" class="prop-sel"></select></label>
+        <label class="prop"><span>format</span><select id="f-format" class="prop-sel"></select></label>
+        <label class="prop"><span>series</span><select id="f-pillar" class="prop-sel"></select></label>
+        <div class="prop"><span class="prop-lab">post date <button class="prop-clear" id="clear-date" type="button">clear</button></span>
+          <input type="date" id="f-date" class="prop-sel" aria-label="post date" required>
+        </div>
+        <label class="prop" id="posted-row" hidden><span>posted on</span><input type="date" id="f-posted" class="prop-sel" aria-label="posted on"></label>
+        <label class="prop"><span>sponsored</span><select id="f-sponsor" class="prop-sel"></select></label>
+      </div>
+      <p class="tagline" id="f-tagline"></p>
+      <div id="f-sponsor-box" class="sponsor-box" hidden>
+        <label class="field"><span class="label">brand</span><input id="f-brand" placeholder="who it's for"></label>
+        <div class="disclose">
+          <p class="section-label">disclosure checklist</p>
+          <div id="f-disclose"></div>
+        </div>
       </div>
 
       <section class="psec">
         <h4>the idea</h4>
-        <div class="field">
-          <span class="label">format</span>
-          <div class="pillars" id="f-format"></div>
-        </div>
-        <div class="field">
-          <span class="label">series</span>
-          <div class="pillars" id="f-pillar"></div>
-          <p class="tagline" id="f-tagline"></p>
-        </div>
         <div class="field">
           <div class="label-row">
             <span class="label">angle</span>
@@ -134,7 +138,7 @@
         <h4>on camera</h4>
         <label class="field">
           <span class="label">hook</span>
-          <input id="f-hook" placeholder="the first line you say on camera">
+          <textarea id="f-hook" class="hook-input" rows="2" placeholder="the first line you say on camera"></textarea>
         </label>
         <div class="field">
           <div class="label-row">
@@ -146,30 +150,22 @@
             <div class="line-chips" id="line-chips"></div>
             <p class="muted small-text">tap a line to drop it into your script (or your hook, if that's where you were typing)</p>
           </div>
-          <textarea id="f-script" rows="9" placeholder="write it the way you'd say it…" aria-label="script"></textarea>
+          <div class="script-box">
+            <div class="script-bar" role="toolbar" aria-label="script formatting">
+              <button type="button" class="sb-btn" data-fmt="bold" title="bold (⌘B)" aria-label="bold"><b>B</b></button>
+              <button type="button" class="sb-btn" data-fmt="underline" title="underline (⌘U)" aria-label="underline"><u>U</u></button>
+              <button type="button" class="sb-btn" data-fmt="italic" title="italic (⌘I)" aria-label="italic"><i>I</i></button>
+              <span class="sb-sep"></span>
+              <button type="button" class="sb-btn sb-clear" data-fmt="removeFormat" title="clear formatting" aria-label="clear formatting">T<sub>×</sub></button>
+              <span class="sb-count" id="script-count"></span>
+            </div>
+            <div id="f-script" class="script-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="script" data-placeholder="write it the way you'd say it…"></div>
+          </div>
         </div>
       </section>
 
       <section class="psec">
-        <h4>publishing</h4>
-        <div class="field">
-          <span class="label">post date</span>
-          <div class="date-row">
-            <input type="date" id="f-date" aria-label="post date">
-            <button class="link small" id="clear-date">clear</button>
-          </div>
-        </div>
-        <div class="field">
-          <span class="label">sponsored?</span>
-          <div class="pillars" id="f-sponsor"></div>
-        </div>
-        <div id="f-sponsor-box" hidden>
-          <label class="field"><span class="label">brand</span><input id="f-brand" placeholder="who it's for"></label>
-          <div class="disclose">
-            <p class="section-label">disclosure checklist</p>
-            <div id="f-disclose"></div>
-          </div>
-        </div>
+        <h4>notes</h4>
         <label class="field">
           <span class="label">notes / link to posted video</span>
           <textarea id="f-notes" rows="3" placeholder="paste the tiktok link once it's up"></textarea>
@@ -374,7 +370,7 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="personal.js?v=202611061920"></script>
-  <script src="app.js?v=202611061920"></script>
+  <script src="personal.js?v=202611062155"></script>
+  <script src="app.js?v=202611062155"></script>
 </body>
 </html>
