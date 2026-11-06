@@ -1843,3 +1843,42 @@ tr:hover .sh-open, .sh-open:focus-visible { opacity: 1; }
 #panel .angle-line textarea:focus { background: #fff; border-color: var(--pink); box-shadow: 0 0 0 4px var(--pink-soft); }
 #panel .angle-line textarea::placeholder { color: var(--grey-2); }
 #panel .angle-pre { top: 11px; transform: none; }
+
+/* script structure: headings, lists, section breaks */
+#panel .script-bar { flex-wrap: wrap; row-gap: 4px; }
+.sb-block {
+  appearance: none; -webkit-appearance: none; border: 0; border-radius: 9px; font: inherit; font-size: 13px;
+  color: var(--ink); background: var(--bg-2); padding: 6px 24px 6px 10px; height: 30px; cursor: pointer; outline: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23B8AFAA' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center;
+}
+.sb-block:hover { background-color: #F7F2F1; }
+.sb-block[data-v="h3"], .sb-block[data-v="h4"] { background-color: var(--pink-soft); color: var(--pink-deep); }
+.script-editor h3 { font-size: 19px; font-weight: 700; letter-spacing: -.01em; line-height: 1.35; margin: 14px 0 4px; }
+.script-editor h4 {
+  font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .08em; color: var(--pink-deep);
+  margin: 12px 0 2px; line-height: 1.5;
+}
+.script-editor > :first-child { margin-top: 0; }
+.script-editor ul, .script-editor ol { margin: 4px 0; padding-left: 22px; white-space: normal; }
+.script-editor li { margin: 2px 0; white-space: pre-wrap; }
+.script-editor ul li::marker { color: var(--pink-deep); }
+.script-editor ol li::marker { color: var(--pink-deep); font-weight: 600; font-size: .9em; }
+.script-editor hr {
+  border: 0; height: 18px; margin: 10px 0; position: relative;
+  background: linear-gradient(90deg, transparent, var(--pink) 20%, var(--pink) 80%, transparent) center / 100% 1px no-repeat;
+}
+.script-editor hr::after {
+  content: '✦'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  background: #fff; color: var(--pink-deep); font-size: 10px; padding: 0 8px;
+}
+@media (max-width: 480px) {
+  #panel .script-box { position: relative; }
+  #panel .script-bar { flex-wrap: nowrap; gap: 0; padding: 6px 4px; overflow-x: auto; scrollbar-width: none; }
+  #panel .script-bar::-webkit-scrollbar { display: none; }
+  #panel .sb-btn { width: 29px; flex: none; }
+  #panel .sb-sep { margin: 0 2px; flex: none; }
+  #panel .sb-block { font-size: 12.5px; padding: 6px 20px 6px 8px; background-position: right 6px center; flex: none; }
+  #panel .sb-count { position: absolute; right: 10px; bottom: 10px; margin: 0; z-index: 1; pointer-events: none; }
+  #panel .script-editor { padding-bottom: 40px; }
+}

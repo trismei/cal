@@ -684,16 +684,18 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   const SKIP_TAGS = /^(SCRIPT|STYLE|META|LINK|TITLE|HEAD|TEMPLATE|IFRAME|OBJECT|EMBED|SVG|IMG|VIDEO|AUDIO|CANVAS|INPUT|BUTTON|SELECT|TEXTAREA)$/;
   const BLOCK_TAGS = /^(P|DIV|H[1-6]|LI|BLOCKQUOTE|PRE|UL|OL|TABLE|TR|SECTION|ARTICLE|HEADER|FOOTER)$/;
   function textToScriptHtml(t) { return esc(String(t || '')).replace(/\r?\n/g, '<br>'); }
+  // keeps: bold / italic / underline, line breaks, heading (h3), subheading (h4), bullet + numbered lists, dividers
   function cleanScriptHtml(html) {
     if (!html || typeof DOMParser === 'undefined') return '';
     const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
-    let out = '';
-    const br = () => { if (out && !out.endsWith('<br>')) out += '<br>'; };
+    let out = '', listDepth = 0;
+    const EDGE = /(^|<br>|<\/h[34]>|<hr>|<[uo]l>|<\/[uo]l>|<li>|<\/li>)$/;
+    const br = () => { if (!EDGE.test(out)) out += '<br>'; };
     const walk = (node, f, pre) => {
       if (node.nodeType === 3) {
         let t = node.nodeValue.replace(/ /g, ' ');
         if (!pre) t = t.replace(/\s+/g, ' ');
-        if (!t) return;
+        if (!t || (t === ' ' && EDGE.test(out))) return;
         let s = pre ? esc(t).replace(/\r?\n/g, '<br>') : esc(t);
         if (f.u) s = `<u>${s}</u>`;
         if (f.i) s = `<i>${s}</i>`;
@@ -705,9 +707,10 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
       const tag = node.tagName.toUpperCase();
       if (SKIP_TAGS.test(tag)) return;
       if (tag === 'BR') { out += '<br>'; return; }
+      if (tag === 'HR') { out = out.replace(/(<br>)+$/, ''); out += '<hr>'; return; }
       const st = node.style || {};
       const g = { ...f };
-      if (/^(B|STRONG|H[1-6])$/.test(tag)) g.b = true;
+      if (/^(B|STRONG)$/.test(tag)) g.b = true;
       if (/^(I|EM)$/.test(tag)) g.i = true;
       if (/^(U|INS)$/.test(tag)) g.u = true;
       const fw = (st.fontWeight || '').toLowerCase();
@@ -715,22 +718,61 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
       if (st.fontStyle) g.i = st.fontStyle === 'italic' || st.fontStyle === 'oblique';
       const td = (st.textDecorationLine || st.textDecoration || '').toLowerCase();
       if (td.includes('underline')) g.u = true;
+      const kids = (gg, p) => node.childNodes.forEach(n => walk(n, gg, p));
+      const openBlock = t => { out = out.replace(/(<br>)+$/, ''); out += t; };
+      const wrapBlock = (open, close, gg, p) => {
+        openBlock(open);
+        const mark = out.length;
+        kids(gg, p);
+        out = out.replace(/(<br>)+$/, '');
+        if (out.length <= mark) out = out.slice(0, mark - open.length);
+        else out += close;
+      };
+      if (/^H[1-6]$/.test(tag)) {
+        const h = Number(tag[1]) <= 3 ? 'h3' : 'h4';
+        wrapBlock(`<${h}>`, `</${h}>`, { i: g.i, u: g.u }, false);
+        return;
+      }
+      if (tag === 'UL' || tag === 'OL') {
+        const l = tag.toLowerCase();
+        listDepth++;
+        wrapBlock(`<${l}>`, `</${l}>`, g, pre);
+        listDepth--;
+        return;
+      }
+      if (tag === 'LI') {
+        if (!listDepth) { br(); out += '• '; kids(g, pre); br(); return; }
+        const mark = out.length;
+        out += '<li>';
+        kids(g, pre);
+        out = out.replace(/(<br>)+$/, '');
+        if (out.length === mark + 4) out = out.slice(0, mark); else out += '</li>';
+        return;
+      }
       const block = BLOCK_TAGS.test(tag);
       if (block) br();
-      if (tag === 'LI') out += '• ';
-      node.childNodes.forEach(n => walk(n, g, pre || tag === 'PRE'));
+      kids(g, pre || tag === 'PRE');
       if (block) br();
     };
     doc.body.childNodes.forEach(n => walk(n, {}, false));
     return out
       .replace(/<\/(b|i|u)><\1>/g, '')
+      .replace(/<li><\/li>/g, '').replace(/<(ul|ol)><\/\1>/g, '')
       .replace(/(<br>\s*){3,}/g, '<br><br>')
+      .replace(/<br>(?=<h[34]>|<hr>|<[uo]l>)/g, '')
+      .replace(/(<\/h[34]>|<hr>|<\/[uo]l>)<br>/g, '$1')
       .replace(/^(\s|<br>)+|(\s|<br>)+$/g, '');
   }
   function scriptHtmlToText(html) {
     const d = document.createElement('div');
-    d.innerHTML = String(html || '').replace(/<br>/g, '\n');
-    return d.textContent;
+    let n = 0;
+    d.innerHTML = String(html || '')
+      .replace(/<ol>/g, () => { n = 0; return '<ol>'; })
+      .replace(/<hr>/g, '\n———\n')
+      .replace(/<\/h[34]>|<\/li>|<br>/g, '\n')
+      .replace(/<h[34]>/g, '\n')
+      .replace(/<li>/g, '• ');
+    return d.textContent.replace(/\n{3,}/g, '\n\n').trim();
   }
 
   function mkCollab(c = {}) {
@@ -2354,6 +2396,12 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   }
 
   let scriptRange = null;
+  function insertDivider() {
+    const s = getSelection();
+    try { if (s.rangeCount && s.getRangeAt(0).collapsed) s.modify('move', 'forward', 'lineboundary'); } catch (e) { /* ignore */ }
+    document.execCommand('insertHTML', false, '<hr><br>');
+    try { document.execCommand('formatBlock', false, 'div'); } catch (e) { /* ignore */ }
+  }
   function scriptMeta() {
     const ed = $('#f-script');
     const words = (ed.textContent.match(/\S+/g) || []).length;
@@ -2362,8 +2410,12 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
     $('#script-count').textContent = words ? `${words} words · ~${secs < 60 ? secs + 's' : Math.floor(secs / 60) + 'm ' + String(secs % 60).padStart(2, '0') + 's'}` : '';
   }
   function scriptToolState() {
+    let blk = '';
+    try { blk = String(document.queryCommandValue('formatBlock') || '').toLowerCase(); } catch (e) { /* ignore */ }
+    const bs = $('#script-block');
+    if (bs) { bs.value = blk === 'h3' || blk === 'h4' ? blk : 'p'; bs.dataset.v = bs.value; }
     document.querySelectorAll('.script-bar [data-fmt]').forEach(b => {
-      if (b.dataset.fmt === 'removeFormat') return;
+      if (b.dataset.fmt === 'removeFormat' || b.dataset.fmt === 'insertHorizontalRule') return;
       let on = false;
       try { on = document.queryCommandState(b.dataset.fmt); } catch (e) { /* ignore */ }
       b.classList.toggle('on', on);
@@ -3123,6 +3175,20 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
     saveScript();
   });
   scriptEd.addEventListener('drop', e => e.preventDefault());
+  $('#script-block').addEventListener('change', e => {
+    scriptEd.focus();
+    if (scriptRange) { const s = getSelection(); s.removeAllRanges(); s.addRange(scriptRange); }
+    document.execCommand('formatBlock', false, e.target.value === 'p' ? 'div' : e.target.value);
+    saveScript();
+    scriptToolState();
+  });
+  scriptEd.addEventListener('keydown', e => {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.altKey && (e.key === '1' || e.code === 'Digit1')) { e.preventDefault(); document.execCommand('formatBlock', false, 'h3'); saveScript(); }
+    if (mod && e.altKey && (e.key === '2' || e.code === 'Digit2')) { e.preventDefault(); document.execCommand('formatBlock', false, 'h4'); saveScript(); }
+    if (mod && e.altKey && (e.key === '0' || e.code === 'Digit0')) { e.preventDefault(); document.execCommand('formatBlock', false, 'div'); saveScript(); }
+    if (mod && e.key === 'Enter') { e.preventDefault(); insertDivider(); saveScript(); }
+  });
   document.addEventListener('selectionchange', () => {
     const sel = getSelection();
     if (!sel.rangeCount || !scriptEd.contains(sel.anchorNode)) return;
@@ -3136,7 +3202,9 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
         scriptEd.focus();
         if (scriptRange) { const s = getSelection(); s.removeAllRanges(); s.addRange(scriptRange); }
       }
-      document.execCommand(b.dataset.fmt, false, null);
+      if (b.dataset.fmt === 'insertHorizontalRule') {
+        insertDivider();
+      } else document.execCommand(b.dataset.fmt, false, null);
       if (b.dataset.fmt === 'removeFormat') {
         ['bold', 'italic', 'underline'].forEach(c => { if (document.queryCommandState(c)) document.execCommand(c, false, null); });
       }
