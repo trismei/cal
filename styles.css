@@ -1319,3 +1319,24 @@ body.syncing-start .sync-curtain { display: grid; }
   .sync-badge { padding: 6px; }
   .modal.ask { border-radius: 20px 20px 0 0; padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
 }
+
+/* dream card: one quiet ⋯ menu */
+.mot-actions { top: 8px; right: 8px; }
+.mot-btn { width: 30px; height: 30px; color: var(--grey-2); }
+.mot:hover .mot-btn, .mot-btn[aria-expanded="true"] { color: var(--grey); }
+.mot-btn[aria-expanded="true"] { background: rgba(255,255,255,.9); }
+.mot .mot-text { padding-right: 34px; }
+.mot-pop {
+  position: absolute; top: 34px; right: 0; z-index: 5; min-width: 128px;
+  background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 4px;
+  box-shadow: 0 10px 28px rgba(43,43,43,.1); display: flex; flex-direction: column;
+}
+.mot-pop button {
+  display: flex; align-items: center; gap: 8px; text-align: left; font-size: 13px;
+  padding: 8px 10px; border-radius: 8px; color: var(--ink); min-height: 36px;
+}
+.mot-pop button:hover { background: var(--bg-2); }
+.mot-pop button svg { color: var(--grey); }
+.mot-pop button[data-del-mot]:hover { color: #B4433C; }
+.mot-pop button[data-del-mot]:hover svg { color: #B4433C; }
+@media (max-width: 700px) { .mot .mot-emoji { margin-right: 36px; } .mot .mot-text { padding-right: 0; } }

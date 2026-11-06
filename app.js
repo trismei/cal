@@ -588,6 +588,7 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   const ICON = {
     todos: '<rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><path d="M8 12.3l2.8 2.8L16.2 9.5"/>',
     check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    dots: '<circle cx="5.5" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.3" fill="currentColor" stroke="none"/>',
     pencil: '<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14 7l3 3"/>',
     fvideo: '<rect x="3" y="5" width="18" height="14" rx="3.5"/><path d="M10.5 9.5v5l4-2.5z"/>',
     fcarousel: '<rect x="7" y="4" width="10" height="16" rx="2"/><path d="M3.5 7v10M20.5 7v10"/>',
@@ -1008,7 +1009,7 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   let lineTarget = 'script', drawerCat = 'transitions';
   let collabFilter = 'active', collabTab = 'pipeline', tplId = DEFAULT_TEMPLATES[0].id;
   let showAllTpls = false;
-  let editingMot = null;
+  let editingMot = null, motMenu = null;
   let hypeSeed = Math.floor(Math.random() * 1e6);
   let genSeries = '', genAngle = 'howto', genStage = 'learn', batchSeries = '';
 
@@ -2237,8 +2238,11 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
               <span class="mot-emoji">${esc(m.emoji || '✨')}</span>
               <span class="mot-text">${esc(m.text)}</span>
               <span class="mot-actions">
-                <button class="mot-btn" data-edit-mot="${m.id}" aria-label="edit ${esc(m.text)}" title="edit">${svg(ICON.pencil, 14)}</button>
-                <button class="mot-btn" data-del-mot="${m.id}" aria-label="remove ${esc(m.text)}" title="remove">${svg(ICON.close, 14)}</button>
+                <button class="mot-btn" data-mot-menu="${m.id}" aria-label="options for ${esc(m.text)}" aria-expanded="${motMenu === m.id}">${svg(ICON.dots, 16)}</button>
+                ${motMenu === m.id ? `<span class="mot-pop" role="menu">
+                  <button role="menuitem" data-edit-mot="${m.id}">${svg(ICON.pencil, 14)}edit</button>
+                  <button role="menuitem" data-del-mot="${m.id}">${svg(ICON.close, 14)}remove</button>
+                </span>` : ''}
               </span>`}
             </div>`).join('')}
           <form class="mot add" id="mot-add" autocomplete="off">
@@ -3330,10 +3334,13 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
     }
     if (t.closest('[data-hype-again]')) { hypeSeed = Math.floor(Math.random() * 1e6); renderHome(); return; }
     if (t.closest('[data-lets-create]')) return letsCreate();
-    if ((el = t.closest('[data-edit-mot]'))) { editingMot = el.dataset.editMot; renderHome(); return; }
+    if ((el = t.closest('[data-mot-menu]'))) { motMenu = motMenu === el.dataset.motMenu ? null : el.dataset.motMenu; renderHome(); return; }
+    if (motMenu && !t.closest('.mot-pop')) { motMenu = null; if (view === 'home') renderHome(); }
+    if ((el = t.closest('[data-edit-mot]'))) { motMenu = null; editingMot = el.dataset.editMot; renderHome(); return; }
     if ((el = t.closest('[data-save-mot]'))) { saveMot(el.dataset.saveMot); return; }
     if (t.closest('[data-cancel-mot]')) { editingMot = null; renderHome(); return; }
     if ((el = t.closest('[data-del-mot]'))) {
+      motMenu = null;
       const i = state.motivations.findIndex(x => x.id === el.dataset.delMot);
       if (i < 0) return;
       const [m] = state.motivations.splice(i, 1);
@@ -3600,6 +3607,7 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
     if (e.key === 'Escape') {
       if (calDrag && calDrag.active) return endCalDrag(0, 0, true);
+      if (motMenu) { motMenu = null; return renderHome(); }
       if (editingTodo) { editingTodo = null; return renderTodos(); }
       if (placingId) { placingId = null; return renderCalendar(); }
       if (!$('#menu').hidden) return closeMenu();
