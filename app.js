@@ -2977,7 +2977,12 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   let renderTimer;
   const scheduleRender = () => { clearTimeout(renderTimer); renderTimer = setTimeout(renderAll, 250); };
 
-  function autoGrow(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+  function autoGrow(el) {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = (el.scrollHeight + el.offsetHeight - el.clientHeight) + 'px';
+  }
+  const growAll = () => document.querySelectorAll('#panel .grow, #f-title, #f-hook').forEach(autoGrow);
 
   function slideIn(panel) {
     $('#scrim').hidden = false;
@@ -3003,8 +3008,7 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
 
   function fillPanel(p) {
     Object.entries(FIELDS).forEach(([k, sel]) => { const el = $(sel); if (el.value !== p[k]) el.value = p[k]; });
-    autoGrow($('#f-title'));
-    autoGrow($('#f-hook'));
+    growAll();
     $('#f-script').innerHTML = p.scriptHtml;
     scriptRange = null;
     scriptMeta();
@@ -3093,7 +3097,7 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
       touch(p);
       persist();
       markSaved();
-      if (k === 'title' || k === 'hook') autoGrow(el);
+      if (k === 'title' || k === 'hook' || el.classList.contains('grow')) autoGrow(el);
       if (k === 'notes') renderNoteLink(p);
       scheduleRender();
     };
@@ -3102,7 +3106,8 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   });
   $('#f-title').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#f-instead').focus(); } });
   $('#f-hook').addEventListener('focus', () => { lineTarget = 'hook'; });
-  $('#f-hook').addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); }); // one line that wraps
+  ['#f-hook', '#f-instead', '#f-try'].forEach(s => $(s).addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); })); // one line that wraps
+  window.addEventListener('resize', () => { if (openId) growAll(); });
 
   const scriptEd = $('#f-script');
   try { document.execCommand('styleWithCSS', false, false); } catch (e) { /* ignore */ }
