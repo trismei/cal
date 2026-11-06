@@ -588,6 +588,8 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   const ICON = {
     todos: '<rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><path d="M8 12.3l2.8 2.8L16.2 9.5"/>',
     check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    expand: '<path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/>',
+    download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
     refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
     dots: '<circle cx="5.5" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.3" fill="currentColor" stroke="none"/>',
     pencil: '<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14 7l3 3"/>',
@@ -1010,7 +1012,8 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   let lineTarget = 'script', drawerCat = 'transitions';
   let collabFilter = 'active', collabTab = 'pipeline', tplId = DEFAULT_TEMPLATES[0].id;
   let showAllTpls = false;
-  let collabLayout = 'cards', sheetSort = { key: '', dir: 1 }, sheetQuery = '';
+  let collabLayout = 'cards', sheetSort = { key: '', dir: 1 }, sheetQuery = '', sheetAll = false;
+  try { sheetAll = localStorage.getItem(KEY + ':sheetAll') === '1'; } catch (e) { /* ignore */ }
   try { if (localStorage.getItem(KEY + ':collabLayout') === 'sheet') collabLayout = 'sheet'; } catch (e) { /* ignore */ }
   let editingMot = null, motMenu = null, whyEdit = false;
   let hypeSeed = Math.floor(Math.random() * 1e6);
@@ -1961,23 +1964,23 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
 
   // one row per brand, every cell editable in place
   const SHEET_COLS = [
-    { key: 'brand', label: 'brand', type: 'text', w: 170, ph: 'brand name' },
-    { key: 'status', label: 'status', type: 'status', w: 128 },
-    { key: 'next', label: 'next step', type: 'next', w: 190 },
+    { core: true, key: 'brand', label: 'brand', type: 'text', w: 170, ph: 'brand name' },
+    { core: true, key: 'status', label: 'status', type: 'status', w: 128 },
+    { core: true, key: 'next', label: 'next step', type: 'next', w: 190 },
     { key: 'type', label: 'type', type: 'select', w: 104, options: () => DEAL_TYPES.map(x => [x, x]) },
     { key: 'series', label: 'series', type: 'select', w: 150, options: () => [['', '—'], ...state.pillars.map(x => [x, seriesShort(x)])] },
-    { key: 'product', label: 'product', type: 'text', w: 150, ph: 'product / feature' },
-    { key: 'contactName', label: 'contact', type: 'text', w: 130, ph: 'name' },
-    { key: 'contact', label: 'email / @', type: 'text', w: 190, ph: 'where to send it' },
+    { core: true, key: 'product', label: 'product', type: 'text', w: 150, ph: 'product / feature' },
+    { core: true, key: 'contactName', label: 'contact', type: 'text', w: 130, ph: 'name' },
+    { core: true, key: 'contact', label: 'email / @', type: 'text', w: 190, ph: 'where to send it' },
     { key: 'foundVia', label: 'found via', type: 'text', w: 170, ph: 'website, linkedin…' },
     { key: 'why', label: 'video idea', type: 'text', w: 220, ph: 'the idea' },
     { key: 'pitchedAt', label: 'pitched', type: 'date', w: 132 },
-    { key: 'followUp', label: 'follow up', type: 'date', w: 132 },
-    { key: 'amount', label: 'rate ₱', type: 'number', w: 100, ph: '0' },
+    { core: true, key: 'followUp', label: 'follow up', type: 'date', w: 132 },
+    { core: true, key: 'amount', label: 'rate ₱', type: 'number', w: 100, ph: '0' },
     { key: 'deliverables', label: 'deliverables', type: 'text', w: 170, ph: 'e.g. 2 tiktoks' },
     { key: 'due', label: 'due', type: 'date', w: 132 },
     { key: 'paid', label: 'paid', type: 'paid', w: 120 },
-    { key: 'notes', label: 'notes', type: 'text', w: 240, ph: 'notes' },
+    { core: true, key: 'notes', label: 'notes', type: 'text', w: 240, ph: 'notes' },
   ];
   const SHEET_TEXT_KEYS = SHEET_COLS.filter(c => ['text', 'number', 'date'].includes(c.type)).map(c => c.key);
 
@@ -2017,29 +2020,31 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
         return `<span class="sh-paid ${fullyPaid(c) ? 'done' : got ? 'part' : ''}">${fullyPaid(c) ? `✓ ${peso(got)}` : got ? `${peso(got)} of ${peso(a)}` : a ? 'not yet' : '—'}</span>`;
       }
       const late = col.type === 'date' && v && (col.key === 'followUp' ? followUpDue(c) : col.key === 'due' ? (v < t && c.status === 'booked') : false);
-      return `<input class="sh-in ${late ? 'late' : ''}" type="${col.type}" ${col.type === 'number' ? 'inputmode="numeric" min="0"' : ''} value="${esc(v)}" placeholder="${esc(col.ph || '')}" ${attrs}>`;
+      return `<input class="sh-in ${late ? 'late' : ''}" type="${col.type}" ${col.type === 'number' ? 'inputmode="numeric" min="0"' : ''} ${col.type === 'date' ? 'required' : ''} value="${esc(v)}" placeholder="${esc(col.ph || '')}" ${attrs}>`;
     };
-    const head = SHEET_COLS.map(col => `<th style="min-width:${col.w}px" ${col.key === 'brand' ? 'class="sticky-col"' : ''}>
+    const cols = SHEET_COLS.filter(c => sheetAll || c.core);
+    const head = cols.map(col => `<th style="min-width:${col.w}px" ${col.key === 'brand' ? 'class="sticky-col"' : ''}>
         <button class="sh-sort ${sheetSort.key === col.key ? 'on' : ''}" data-sheet-sort="${col.key}">${col.label}${sheetSort.key === col.key ? (sheetSort.dir > 0 ? ' ↑' : ' ↓') : ''}</button>
       </th>`).join('');
     const body = rows.map(c => `<tr data-sheet-row="${c.id}">
-        ${SHEET_COLS.map(col => `<td ${col.key === 'brand' ? 'class="sticky-col"' : ''}>${col.key === 'brand'
-          ? `<div class="sh-brand"><button class="sh-open" data-open-collab="${c.id}" aria-label="open ${esc(c.brand || 'brand')}" title="open">↗</button>${cell(c, col)}</div>`
+        ${cols.map(col => `<td class="${col.key === 'brand' ? 'sticky-col' : ''} c-${col.key}">${col.key === 'brand'
+          ? `<div class="sh-brand"><span class="sh-av" aria-hidden="true">${esc((c.brand.trim()[0] || '+').toUpperCase())}</span>${cell(c, col)}<button class="sh-open" data-open-collab="${c.id}" aria-label="open ${esc(c.brand || 'brand')}" title="open full card">${svg(ICON.expand, 14)}</button></div>`
           : cell(c, col)}</td>`).join('')}
       </tr>`).join('');
     $('#collab-grid').innerHTML = `
       <div class="sheet-tools">
         <input class="search sheet-search" id="sheet-search" type="search" placeholder="search brands, contacts, notes…" value="${esc(sheetQuery)}" aria-label="search the sheet">
-        <button class="ghost small" data-sheet-add>+ add brand</button>
-        <button class="ghost small" data-sheet-csv title="download for Google Sheets or Excel">export CSV</button>
+        <button class="sheet-tool primary-soft" data-sheet-add>+ add brand</button>
+        <button class="sheet-tool" data-sheet-cols>${sheetAll ? 'fewer columns' : 'all columns'}</button>
+        <button class="sheet-tool" data-sheet-csv title="download for Google Sheets or Excel">${svg(ICON.download, 14)}CSV</button>
       </div>
       <div class="sheet-wrap">
         <table class="sheet">
           <thead><tr>${head}</tr></thead>
-          <tbody>${body || `<tr><td class="sh-empty" colspan="${SHEET_COLS.length}">${state.collabs.length ? 'nothing matches. try "all" above, or clear the search.' : 'no brands yet. tap + add brand to start your pitch list.'}</td></tr>`}</tbody>
+          <tbody>${body || `<tr><td class="sh-empty" colspan="${cols.length}">${state.collabs.length ? 'nothing matches. try "all" above, or clear the search.' : 'no brands yet. tap + add brand to start your pitch list.'}</td></tr>`}</tbody>
         </table>
       </div>
-      <p class="muted small-text sheet-hint">every cell saves as you type · click a column name to sort · ↗ opens the full brand card</p>`;
+      <p class="sheet-hint">saves as you type · tap a column name to sort${sheetAll ? '' : ` · ${SHEET_COLS.length - cols.length} more columns in “all columns”`}</p>`;
     const s = $('#sheet-search');
     s.addEventListener('input', () => {
       sheetQuery = s.value;
@@ -3607,6 +3612,11 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
     if ((el = t.closest('[data-clayout]'))) {
       collabLayout = el.dataset.clayout;
       try { localStorage.setItem(KEY + ':collabLayout', collabLayout); } catch (err) { /* ignore */ }
+      return renderPipeline();
+    }
+    if (t.closest('[data-sheet-cols]')) {
+      sheetAll = !sheetAll;
+      try { localStorage.setItem(KEY + ':sheetAll', sheetAll ? '1' : '0'); } catch (err) { /* ignore */ }
       return renderPipeline();
     }
     if ((el = t.closest('[data-sheet-sort]'))) {
