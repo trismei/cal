@@ -1864,14 +1864,7 @@ tr:hover .sh-open, .sh-open:focus-visible { opacity: 1; }
 .script-editor li { margin: 2px 0; white-space: pre-wrap; }
 .script-editor ul li::marker { color: var(--pink-deep); }
 .script-editor ol li::marker { color: var(--pink-deep); font-weight: 600; font-size: .9em; }
-.script-editor hr {
-  border: 0; height: 18px; margin: 10px 0; position: relative;
-  background: linear-gradient(90deg, transparent, var(--pink) 20%, var(--pink) 80%, transparent) center / 100% 1px no-repeat;
-}
-.script-editor hr::after {
-  content: '✦'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  background: #fff; color: var(--pink-deep); font-size: 10px; padding: 0 8px;
-}
+.script-editor hr { border: 0; border-top: 1.5px dashed #D6CCC8; height: 0; margin: 16px 0; }
 @media (max-width: 480px) {
   #panel .script-box { position: relative; }
   #panel .script-bar { flex-wrap: nowrap; gap: 0; padding: 6px 4px; overflow-x: auto; scrollbar-width: none; }
