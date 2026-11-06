@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-title" content="content cal">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=202611062155">
+  <link rel="stylesheet" href="styles.css?v=202611062240">
 </head>
 <body>
 
@@ -117,15 +117,15 @@
       </div>
 
       <section class="psec">
-        <h4>the idea</h4>
+        <h4><span class="ps-ic">💡</span>the idea</h4>
         <div class="field">
           <div class="label-row">
             <span class="label">angle</span>
             <button class="link small" id="panel-helper">✨ angle helper</button>
           </div>
           <div class="angle">
-            <label class="angle-line"><span class="angle-pre no">instead of ❌</span><input id="f-instead" placeholder="the boring version"></label>
-            <label class="angle-line"><span class="angle-pre yes">try →</span><input id="f-try" placeholder="the story / angle"></label>
+            <label class="angle-line"><span class="angle-pre no">instead of</span><input id="f-instead" placeholder="the boring version"></label>
+            <label class="angle-line"><span class="angle-pre yes">try ✦</span><input id="f-try" placeholder="the story / angle"></label>
           </div>
         </div>
         <label class="field">
@@ -135,10 +135,10 @@
       </section>
 
       <section class="psec">
-        <h4>on camera</h4>
+        <h4><span class="ps-ic">🎬</span>on camera</h4>
         <label class="field">
           <span class="label">hook</span>
-          <textarea id="f-hook" class="hook-input" rows="2" placeholder="the first line you say on camera"></textarea>
+          <span class="hook-wrap"><textarea id="f-hook" class="hook-input" rows="2" placeholder="the first line you say on camera"></textarea></span>
         </label>
         <div class="field">
           <div class="label-row">
@@ -165,7 +165,7 @@
       </section>
 
       <section class="psec">
-        <h4>notes</h4>
+        <h4><span class="ps-ic">📝</span>notes</h4>
         <label class="field">
           <span class="label">notes / link to posted video</span>
           <textarea id="f-notes" rows="3" placeholder="paste the tiktok link once it's up"></textarea>
@@ -370,7 +370,7 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="personal.js?v=202611062155"></script>
-  <script src="app.js?v=202611062155"></script>
+  <script src="personal.js?v=202611062240"></script>
+  <script src="app.js?v=202611062240"></script>
 </body>
 </html>

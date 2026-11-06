@@ -3038,6 +3038,7 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
       '<option value="__new">+ new series…</option>';
     sel.classList.toggle('muted-sel', !p.pillar);
     sel.closest('.prop').style.setProperty('--sc', p.pillar ? seriesColor(p.pillar) : 'transparent');
+    $('#panel').style.setProperty('--pc', p.pillar ? seriesColor(p.pillar) : '#F8C8DC');
     $('#f-tagline').textContent = state.taglines[p.pillar] || '';
   }
 
