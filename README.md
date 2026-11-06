@@ -14,7 +14,7 @@ Everything you add is saved **in your own browser, on your own device**. Nothing
 - **home**: a hype line, this week's progress, today's to-dos and the dreams you're working toward.
 - **to-dos**: list, week and month views, with smart adding ("film the hook tomorrow !", "#work fri"), ⭐ important, repeat and notes.
 - **board**: 💡 idea → ✍️ scripted → 🎬 filmed → ✅ posted.
-- **calendar**: drag posts between days, and drag unscheduled ideas in from the ideas drawer.
+- **calendar**: day, week and month views. Drag posts between days (and across weeks or months), and drag unscheduled ideas in from the ideas drawer.
 - **ideas**: your idea bank, a 6-idea generator, and 🎲 pick for me.
 - **collabs**: a brand pipeline with follow-up reminders, payment tracking, message templates, a rate card and a pitching playbook.
 - **lines**: your signature lines, insertable straight into scripts.

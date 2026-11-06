@@ -588,6 +588,7 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   const ICON = {
     todos: '<rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><path d="M8 12.3l2.8 2.8L16.2 9.5"/>',
     check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
     dots: '<circle cx="5.5" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.3" fill="currentColor" stroke="none"/>',
     pencil: '<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14 7l3 3"/>',
     fvideo: '<rect x="3" y="5" width="18" height="14" rx="3.5"/><path d="M10.5 9.5v5l4-2.5z"/>',
@@ -1009,7 +1010,7 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   let lineTarget = 'script', drawerCat = 'transitions';
   let collabFilter = 'active', collabTab = 'pipeline', tplId = DEFAULT_TEMPLATES[0].id;
   let showAllTpls = false;
-  let editingMot = null, motMenu = null;
+  let editingMot = null, motMenu = null, whyEdit = false;
   let hypeSeed = Math.floor(Math.random() * 1e6);
   let genSeries = '', genAngle = 'howto', genStage = 'learn', batchSeries = '';
 
@@ -1415,28 +1416,43 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
       ...state.posts.filter(p => p.date && p.date.slice(0, 7) === calMonth).map(p => ({ d: p.date, attr: `data-open="${p.id}"`, t: p.title || 'untitled', e: S[p.status].emoji, m: `${FMT[p.format].icon} ${FMT[p.format].label}${p.pillar ? ' · ' + seriesShort(p.pillar) : ''}`, c: p.pillar ? seriesColor(p.pillar) : '' })),
       ...state.collabs.filter(c => c.due && c.status !== 'passed' && c.due.slice(0, 7) === calMonth).map(c => ({ d: c.due, attr: `data-open-collab="${c.id}"`, t: `${c.brand} content due`, e: '🤝' })),
     ].sort((a, b) => a.d.localeCompare(b.d));
-    const label = new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toLowerCase();
+    const monthLabel = new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toLowerCase();
+    const ws = weekStart(calDay);
+    const short = d => parseYmd(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toLowerCase();
+    const label = calMode === 'month' ? monthLabel
+      : calMode === 'week' ? (ws === weekStart(t) ? 'this week' : ws === addDays(weekStart(t), 7) ? 'next week' : ws === addDays(weekStart(t), -7) ? 'last week' : `${short(ws)} – ${short(addDays(ws, 6))}`)
+      : (calDay === t ? 'today' : calDay === addDays(t, 1) ? 'tomorrow' : calDay === addDays(t, -1) ? 'yesterday' : parseYmd(calDay).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase());
+    const sub = calMode === 'month' ? 'tap an empty day to plan a post · drag posts to move them'
+      : calMode === 'week' ? `${short(ws)} – ${short(addDays(ws, 6))} · drag posts between days`
+      : `${parseYmd(calDay).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).toLowerCase()}`;
+    const unit = calMode === 'month' ? 'month' : calMode;
+    const body = calMode === 'week' ? calWeekHTML(byDate) : calMode === 'day' ? calDayHTML() : '';
 
     const searchFocused = document.activeElement && document.activeElement.id === 'tray-search';
     const placing = placingId && find(placingId);
     if (placingId && !placing) placingId = null;
-    $('#view-calendar').innerHTML = viewHead(label, 'tap an empty day to plan a post · drag posts to move them',
+    $('#view-calendar').innerHTML = viewHead(label, sub,
       `<div class="cal-nav">
+        <div class="seg-switch cal-modes" role="tablist">
+          <button class="${calMode === 'day' ? 'on' : ''}" data-calmode="day">day</button>
+          <button class="${calMode === 'week' ? 'on' : ''}" data-calmode="week">week</button>
+          <button class="${calMode === 'month' ? 'on' : ''}" data-calmode="month">month</button>
+        </div>
         <button class="ghost small tray-toggle ${trayOpen ? 'on' : ''}" data-tray-toggle aria-expanded="${trayOpen}">💡 ideas · ${trayIdeas().length}</button>
-        <button class="icon" data-cal="-1" aria-label="previous month">‹</button>
+        <button class="icon" data-cal="-1" aria-label="previous ${unit}">‹</button>
         <button class="ghost small" data-cal="0">today</button>
-        <button class="icon" data-cal="1" aria-label="next month">›</button>
+        <button class="icon" data-cal="1" aria-label="next ${unit}">›</button>
       </div>`) + `
       ${placing ? `<div class="placing"><span>📅 tap a day for <b>${esc(placing.title || 'untitled')}</b></span><button class="chip" data-place-cancel>cancel</button></div>` : ''}
       <div class="cal-layout ${trayOpen ? 'with-tray' : ''}">
         <div class="cal-main">
-          <div class="cal-grid ${placing ? 'placing-mode' : ''}">${cells}</div>
+          ${calMode === 'month' ? `<div class="cal-grid ${placing ? 'placing-mode' : ''}">${cells}</div>` : body}
           <div class="legend">
             ${state.pillars.map(p => `<span><i class="sdot" style="background:${seriesColor(p)}"></i>${esc(seriesShort(p))}</span>`).join('')}
             <span class="legend-sep"></span>
             <span>✍️ scripted · 🎬 filmed · ✅ posted</span><span><i class="lg collab"></i>collab due</span>
           </div>
-          <div class="agenda">
+          <div class="agenda ${calMode !== 'month' ? 'off' : ''}">
             <p class="section-label">this month</p>
             ${agenda.map(a => `<button class="agenda-row" ${a.attr}><span class="d">${fmtDate(a.d)}</span><span class="t">${esc(a.t)}${a.m ? `<span class="agenda-meta">${a.c ? `<i class="sdot" style="background:${a.c}"></i>` : ''}${esc(a.m)}</span>` : ''}</span><span>${a.e}</span></button>`).join('') || '<p class="muted small-text">nothing dated this month yet</p>'}
           </div>
@@ -1460,6 +1476,63 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
       $('#tray-series').addEventListener('change', e => { traySeries = e.target.value; renderTrayList(); });
       if (searchFocused) { s.focus({ preventScroll: true }); s.setSelectionRange(s.value.length, s.value.length); }
     }
+  }
+
+  function calWeekHTML(byDate) {
+    const t = todayStr();
+    const ws = weekStart(calDay);
+    const days = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(ws, i));
+    return `<div class="cal-week ${placingId ? 'placing-mode' : ''}">${days.map(d => {
+      const items = byDate[d] || [];
+      const dn = parseYmd(d);
+      return `<div class="day cw-day ${d === t ? 'today' : ''} ${d < t ? 'past' : ''}" data-day="${d}">
+        <button class="wd-head" data-calpick="${d}" title="open this day">
+          <span class="wd-name">${dn.toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase()}</span>
+          <span class="wd-num">${dn.getDate()}</span>
+          ${items.length ? `<span class="wd-count">${items.length}</span>` : ''}
+        </button>
+        <div class="cw-list">${items.map(i => i.html).join('')}</div>
+        <span class="wd-add">+ plan a post</span>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  function calDayHTML() {
+    const t = todayStr();
+    const d = calDay;
+    const ws = weekStart(d);
+    const posts = state.posts.filter(p => p.date === d)
+      .sort((a, b) => STATUSES.findIndex(s => s.id === b.status) - STATUSES.findIndex(s => s.id === a.status));
+    const dues = state.collabs.filter(c => c.due === d && c.status !== 'passed');
+    const strip = [0, 1, 2, 3, 4, 5, 6].map(i => {
+      const x = addDays(ws, i);
+      const n = state.posts.filter(p => p.date === x).length + state.collabs.filter(c => c.due === x && c.status !== 'passed').length;
+      const dn = parseYmd(x);
+      return `<button class="ds-day ${x === d ? 'on' : ''} ${x === t ? 'today' : ''}" data-calpick="${x}">
+        <span>${dn.toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase()}</span><b>${dn.getDate()}</b><i>${n ? '●'.repeat(Math.min(n, 3)) : ''}</i>
+      </button>`;
+    }).join('');
+    const card = p => {
+      const f = FMT[p.format];
+      return `<article class="cd-card ${p.status}" data-open="${p.id}" style="--sc:${seriesColor(p.pillar)}" tabindex="0">
+        <div class="cd-top">
+          ${p.pillar ? `<span class="cd-series">${esc(seriesShort(p.pillar))}</span>` : ''}
+          <span class="cd-fmt">${fmtIcon(p.format, 12)}${f.label}</span>
+          ${p.sponsor ? `<span class="tag ad">${p.sponsor === 'paid' ? '#ad' : p.sponsor}</span>` : ''}
+        </div>
+        <h3>${esc(p.title) || 'untitled'}</h3>
+        ${preview(p) ? `<p class="hook">${preview(p)}</p>` : ''}
+        <div class="cd-foot">${statusChip(p)}</div>
+      </article>`;
+    };
+    return `
+      <div class="day-strip">${strip}</div>
+      <div class="day cd-day ${placingId ? 'placing-mode' : ''}" data-day="${d}">
+        ${dues.map(c => `<button class="cd-collab" data-open-collab="${c.id}">🤝 <b>${esc(c.brand)}</b> content is due today${c.deliverables ? ` · ${esc(c.deliverables)}` : ''}</button>`).join('')}
+        ${posts.map(card).join('')}
+        ${!posts.length && !dues.length ? `<p class="cd-empty">nothing planned for this day yet.${trayOpen ? ' drag an idea in from the drawer, or' : ''}</p>` : ''}
+        <button class="cd-new" data-new-post="${d}">+ plan a post for ${d === t ? 'today' : fmtDate(d, false)}</button>
+      </div>`;
   }
 
   // every post without a date that isn't posted yet: your ideas (and anything scripted or filmed but unscheduled)
@@ -1503,6 +1576,17 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   let calDrag = null;
   let swallowClick = false;
   let placingId = null, trayQuery = '', traySeries = 'all';
+  let calMode = 'month', calDay = todayStr();
+  try { const m = localStorage.getItem(KEY + ':calMode'); if (m === 'day' || m === 'week') calMode = m; } catch (e) { /* ignore */ }
+
+  // ‹ › and "today" for whichever calendar view is open
+  function shiftCal(d) {
+    if (d === 0) { calDay = todayStr(); calMonth = calDay.slice(0, 7); return; }
+    if (calMode === 'day') calDay = addDays(calDay, d);
+    else if (calMode === 'week') calDay = addDays(calDay, d * 7);
+    else { const [y, m] = calMonth.split('-').map(Number); calMonth = ymd(new Date(y, m - 1 + d, 1)).slice(0, 7); return; }
+    calMonth = calDay.slice(0, 7);
+  }
   let trayOpen = window.innerWidth > 700;
   try { const v = localStorage.getItem(KEY + ':tray'); if (v !== null) trayOpen = v === '1'; } catch (e) { /* ignore */ }
 
@@ -1568,7 +1652,8 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   document.addEventListener('pointerdown', e => {
     if (!(e.target instanceof Element) || e.target.closest('[data-place]')) return;
     if (e.target.closest('[data-todo-check]')) return;
-    const pill = e.target.closest('#view-calendar .pill, #view-calendar .tray-item, #view-todos .tdc');
+    if (e.target.closest('[data-advance]')) return;
+    const pill = e.target.closest('#view-calendar .pill, #view-calendar .cd-card, #view-calendar .tray-item, #view-todos .tdc');
     if (!pill || e.button > 0) return;
     if (pill.classList.contains('tray-item') && e.pointerType !== 'mouse') return; // lets the list scroll on phones
     const day = pill.closest('.day');
@@ -1611,8 +1696,7 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
             todoCalMonth = ymd(new Date(y, m - 1 + navDir, 1)).slice(0, 7);
             renderTodos();
           } else {
-            const [y, m] = calMonth.split('-').map(Number);
-            calMonth = ymd(new Date(y, m - 1 + navDir, 1)).slice(0, 7);
+            shiftCal(navDir);
             renderCalendar();
           }
           calDrag.navTimer = null;
@@ -2129,103 +2213,42 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
 
   function renderHome() {
     const P = state.profile;
+    const t = todayStr();
     const hr = new Date().getHours();
     const greet = hr < 12 ? 'good morning' : hr < 18 ? 'good afternoon' : 'good evening';
-    const day = dayNumber();
     const mots = state.motivations;
-    const featured = mots.length ? mots[(hypeSeed + day) % mots.length] : null;
+    const featured = mots.length ? mots[(hypeSeed + dayNumber()) % mots.length] : null;
     const quote = AFFIRMATIONS[hypeSeed % AFFIRMATIONS.length];
-    const allPosted = state.posts.filter(p => p.status === 'posted').length;
-    const ideaCount = state.posts.filter(p => p.status === 'idea').length;
-    const pitchedCount = state.collabs.filter(c => c.pitchedAt || ['talking', 'booked', 'paid'].includes(c.status)).length;
-    const earnedAll = state.collabs.flatMap(payments).reduce((s, p) => s + p.amt, 0);
-    const scriptedNow = state.posts.filter(p => p.status === 'scripted').length;
-    const filmedNow = state.posts.filter(p => p.status === 'filmed').length;
-    const ctaHint = state.posts.some(p => p.date === todayStr() && p.status !== 'posted') ? "opens today's planned video"
-      : scriptedNow ? 'opens your next scripted video, ready to film'
-      : filmedNow ? 'opens a filmed video, ready to post'
-      : 'picks an idea for you to script today';
+    const scriptedNow = state.posts.some(p => p.status === 'scripted');
+    const filmedNow = state.posts.some(p => p.status === 'filmed');
+    const ctaHint = state.posts.some(p => p.date === t && p.status !== 'posted') ? "opens today's planned video"
+      : scriptedNow ? 'opens your next scripted video' : filmedNow ? 'opens a filmed video, ready to post' : 'picks an idea for you to script';
 
+    // this week
     const counts = weekCounts();
-    const n = counts[weekStart(todayStr())] || 0, g = state.weeklyGoal, streak = streakWeeks(counts);
+    const n = counts[weekStart(t)] || 0, g = state.weeklyGoal, streak = streakWeeks(counts);
     let dots = '';
     for (let i = 0; i < Math.max(g, n); i++) dots += `<span class="dot ${i < n ? 'on' : ''}"></span>`;
-
-    const month = todayStr().slice(0, 7);
-    const paidMonth = state.collabs.flatMap(payments).filter(p => p.date.slice(0, 7) === month).reduce((s, p) => s + p.amt, 0);
-    const coming = state.collabs.filter(c => c.status === 'booked' || c.status === 'paid').reduce((s, c) => s + Math.max(0, amountOf(c) - received(c)), 0);
+    const pays = state.collabs.flatMap(payments);
+    const paidMonth = pays.filter(p => p.date.slice(0, 7) === t.slice(0, 7)).reduce((s, p) => s + p.amt, 0);
     const ig = state.incomeGoal;
+    // all time, in one quiet line
+    const allPosted = state.posts.filter(p => p.status === 'posted').length;
+    const pitchedCount = state.collabs.filter(c => c.pitchedAt || ['talking', 'booked', 'paid'].includes(c.status)).length;
+    const earnedAll = pays.reduce((s, p) => s + p.amt, 0);
+    const wins = [
+      allPosted ? plural(allPosted, 'video') + ' posted' : '',
+      pitchedCount ? plural(pitchedCount, 'brand') + ' pitched' : '',
+      earnedAll ? peso(earnedAll) + ' earned' : '',
+    ].filter(Boolean);
 
-    const todos = homeTodos();
-    const myTodos = todayTodos().slice(0, 5);
-    const nextPost = state.posts.filter(p => p.date && p.date >= todayStr() && p.status !== 'posted').sort((a, b) => a.date.localeCompare(b.date))[0];
+    // today: your to-dos + the one thing the app thinks matters most
+    const mine = todayTodos();
+    const shown = mine.slice(0, 4);
+    const nudge = homeTodos()[0];
 
-    $('#view-home').innerHTML = `
-      <section class="home-hero">
-        <p class="greet">${greet}, ${esc(P.name || 'bestie')} ${hr < 18 ? '☀️' : '🌙'}</p>
-        <h2 class="hype pop">${esc(quote)}</h2>
-        ${featured ? `<p class="for-line">today's video is for <span class="for-pill">${esc(featured.emoji || '✨')} ${esc(featured.text)}</span></p>` : ''}
-        <div class="hero-actions">
-          <button class="cta" data-lets-create>✨ let's create</button>
-          <button class="ghost" data-hype-again>hype me again 🔄</button>
-        </div>
-        <p class="cta-hint">${ctaHint}</p>
-      </section>
-
-      <section class="wins">
-        <p class="section-label">look how far you've come 🥹</p>
-        <div class="wins-grid">
-          <div class="win"><b>${allPosted}</b><span>${allPosted === 1 ? 'video' : 'videos'} posted</span></div>
-          <div class="win"><b>${ideaCount}</b><span>ideas waiting for you</span></div>
-          <div class="win"><b>${pitchedCount}</b><span>${pitchedCount === 1 ? 'brand' : 'brands'} pitched</span></div>
-          <div class="win sage"><b>${peso(earnedAll)}</b><span>earned from content</span></div>
-        </div>
-        <p class="wins-note">${allPosted + pitchedCount === 0 ? 'day one energy. every creator you look up to started at zero 🌱' : allPosted < 10 ? 'every single one of these counts. keep stacking 🧱' : "you're literally doing it. don't stop now 🔥"}</p>
-      </section>
-
-      <section class="home-grid">
-        <button class="hcard" data-view="board">
-          <span class="label">this week</span>
-          <b class="hbig">${n}<span>/${g} posted</span></b>
-          <span class="dots">${dots}</span>
-          <span class="hsub">${streak ? `🔥 ${streak}-week streak` : n >= g ? 'goal hit 🎉' : `${g - n} more to hit your goal`}</span>
-        </button>
-        <button class="hcard money" data-view="collabs">
-          <span class="label">earned this month</span>
-          <b class="hbig">${peso(paidMonth)}</b>
-          ${ig ? `<span class="goal-bar"><span style="width:${Math.min(100, (paidMonth / ig) * 100)}%"></span></span>` : ''}
-          <span class="hsub">${coming ? `${peso(coming)} still coming in` : ig ? `goal: ${peso(ig)}` : 'set a monthly goal in collabs'}</span>
-        </button>
-        <button class="hcard" ${nextPost ? `data-open="${nextPost.id}"` : 'data-view="calendar"'}>
-          <span class="label">next up on your calendar</span>
-          ${nextPost
-            ? `<b class="hnext">${esc(nextPost.title)}</b><span class="hsub">${S[nextPost.status].emoji} ${S[nextPost.status].label} · ${fmtDate(nextPost.date)}</span>`
-            : '<b class="hnext muted">nothing dated yet</b><span class="hsub">tap to plan a post</span>'}
-        </button>
-      </section>
-
-      <section class="home-block">
-        <div class="home-td-head"><p class="section-label">today's to-dos</p><button class="link small" data-view="todos">see all →</button></div>
-        ${myTodos.length ? `<div class="home-mytodos">${myTodos.map(x => `
-          <div class="hm-td ${x.star ? 'starred' : ''}">
-            <button class="td-check" data-todo-check="${x.id}" aria-label="mark done: ${esc(x.title)}">${svg(ICON.check, 13)}</button>
-            <span class="hm-td-title">${esc(x.title)}</span>
-            ${x.due < todayStr() ? '<span class="td-chip late">overdue</span>' : ''}${x.star ? '<span class="hm-star">★</span>' : ''}
-          </div>`).join('')}${todayTodos().length > myTodos.length ? `<button class="link small" data-view="todos">+ ${todayTodos().length - myTodos.length} more</button>` : ''}</div>` : ''}
-        ${todos.length ? '<p class="section-label sub">suggested for today</p>' : ''}
-        ${todos.length ? `<div class="todos">${todos.map(x => `
-          <button class="hodo" ${x.attrs}><span class="hodo-icon">${x.icon}</span><span class="hodo-text">${x.html}</span><span class="hodo-go">${x.btn} →</span></button>`).join('')}</div>`
-          : myTodos.length ? '' : '<p class="caught-up">all caught up ✨ romanticize the rest of your day</p>'}
-      </section>
-
-      <section class="home-block">
-        <div class="mot-head">
-          <p class="section-label">why I'm doing this</p>
-
-        </div>
-        <div class="mot-grid">
-          ${mots.map((m, i) => `
-            <div class="mot ${i % 3 === 1 ? 'sage' : i % 3 === 2 ? 'plain' : ''} ${featured && m.id === featured.id ? 'today' : ''} ${editingMot === m.id ? 'editing' : ''}">
+    const whyCards = mots.map((m, i) => `
+            <div class="mot ${i % 3 === 1 ? 'sage' : i % 3 === 2 ? 'plain' : ''} ${editingMot === m.id ? 'editing' : ''}">
               ${editingMot === m.id ? `
               <div class="mot-form">
                 <input class="mot-emoji-field" id="edit-mot-emoji" value="${esc(m.emoji || '✨')}" maxlength="4" aria-label="emoji">
@@ -2244,24 +2267,70 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
                   <button role="menuitem" data-del-mot="${m.id}">${svg(ICON.close, 14)}remove</button>
                 </span>` : ''}
               </span>`}
-            </div>`).join('')}
+            </div>`).join('');
+
+    $('#view-home').innerHTML = `
+      <section class="home-hero">
+        <p class="greet">${greet}, ${esc(P.name || 'bestie')} ${hr < 18 ? '☀️' : '🌙'}</p>
+        <div class="hype-row">
+          <h2 class="hype pop">${esc(quote)}</h2>
+          <button class="icon hype-again" data-hype-again aria-label="show another hype line" title="another one">${svg(ICON.refresh, 17)}</button>
+        </div>
+        ${featured ? `<p class="for-line">today's video is for <span class="for-pill">${esc(featured.emoji || '✨')} ${esc(featured.text)}</span></p>` : ''}
+        <button class="cta" data-lets-create title="${ctaHint}">✨ let's create</button>
+      </section>
+
+      <section class="home-sec">
+        <div class="home-sec-head"><h3>today</h3><button class="link small" data-view="todos">see all →</button></div>
+        <div class="today-card">
+          ${shown.map(x => `
+          <div class="hm-td ${x.star ? 'starred' : ''}">
+            <button class="td-check" data-todo-check="${x.id}" aria-label="mark done: ${esc(x.title)}">${svg(ICON.check, 13)}</button>
+            <span class="hm-td-title">${esc(x.title)}</span>
+            ${x.due < t ? '<span class="td-chip late">overdue</span>' : ''}${x.star ? '<span class="hm-star">★</span>' : ''}
+          </div>`).join('')}
+          ${mine.length > shown.length ? `<button class="hm-more" data-view="todos">+ ${mine.length - shown.length} more for today</button>` : ''}
+          ${!shown.length ? `<p class="hm-empty">${nudge ? 'no to-dos for today.' : 'all caught up ✨ romanticize the rest of your day'}</p>` : ''}
+          ${nudge ? `<button class="hm-nudge" ${nudge.attrs}><span class="hm-nudge-icon">${nudge.icon}</span><span class="hm-nudge-text"><span class="label">next up</span><span>${nudge.html}</span></span><span class="hodo-go">→</span></button>` : ''}
+        </div>
+      </section>
+
+      <section class="home-sec">
+        <div class="home-sec-head"><h3>this week</h3></div>
+        <div class="week-strip">
+          <button class="ws-cell" data-view="board">
+            <span class="label">posted</span>
+            <b>${n}<span>/${g}</span></b>
+            <span class="dots">${dots}</span>
+          </button>
+          <button class="ws-cell" data-view="collabs">
+            <span class="label">earned this month</span>
+            <b>${peso(paidMonth)}</b>
+            ${ig ? `<span class="goal-bar"><span style="width:${Math.min(100, (paidMonth / ig) * 100)}%"></span></span>` : '<span class="ws-sub">set a goal in collabs</span>'}
+          </button>
+          <div class="ws-cell">
+            <span class="label">streak</span>
+            <b>${streak ? `🔥 ${streak}<span> ${streak === 1 ? 'week' : 'weeks'}</span>` : '—'}</b>
+            <span class="ws-sub">${streak ? 'keep it going' : n >= g ? 'goal hit 🎉' : `${g - n} more to start one`}</span>
+          </div>
+        </div>
+        <p class="wins-line">${wins.length ? `all time: ${wins.join(' · ')} 🥹` : 'day one energy. every creator you look up to started at zero 🌱'}</p>
+      </section>
+
+      <section class="home-sec">
+        <div class="home-sec-head"><h3>my why</h3><button class="link small" data-why-edit>${whyEdit ? 'done' : 'edit'}</button></div>
+        ${whyEdit ? `
+        <div class="mot-grid">
+          ${whyCards}
           <form class="mot add" id="mot-add" autocomplete="off">
             <input id="mot-emoji" class="mot-emoji-in" maxlength="4" placeholder="✨" aria-label="emoji">
             <input id="mot-text" placeholder="+ add another dream…" aria-label="add a dream">
             <button type="submit" class="chip">add</button>
           </form>
-        </div>
-      </section>
-
-      <section class="home-block">
-        <p class="section-label">quick start</p>
-        <div class="quick-actions">
-          <button class="qa" data-focus-add><span>💡</span>add an idea</button>
-          <button class="qa" data-open-modal="batch"><span>🗓</span>plan this week</button>
-          <button class="qa" data-open-modal="gen"><span>✦</span>make 6 ideas</button>
-          <button class="qa" data-view="collabs"><span>✉️</span>pitch a brand</button>
-          <button class="qa" data-view="lines"><span>💬</span>my lines</button>
-        </div>
+        </div>` : `
+        <div class="why-row">
+          ${mots.map(m => `<button class="why-chip ${featured && m.id === featured.id ? 'today' : ''}" data-why-edit>${esc(m.emoji || '✨')} ${esc(m.text)}</button>`).join('') || '<button class="why-chip add" data-why-edit>+ add your first dream</button>'}
+        </div>`}
       </section>
 
       <p class="home-goal">${esc(GOAL_LINE)}</p>`;
@@ -3332,6 +3401,7 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
       placingId = null;
       return moveToDate('post', id, el.dataset.day);
     }
+    if (t.closest('[data-why-edit]')) { whyEdit = !whyEdit; editingMot = null; motMenu = null; return renderHome(); }
     if (t.closest('[data-hype-again]')) { hypeSeed = Math.floor(Math.random() * 1e6); renderHome(); return; }
     if (t.closest('[data-lets-create]')) return letsCreate();
     if ((el = t.closest('[data-mot-menu]'))) { motMenu = motMenu === el.dataset.motMenu ? null : el.dataset.motMenu; renderHome(); return; }
@@ -3491,15 +3561,18 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
       window.scrollTo({ top: 0 });
       return renderView();
     }
-    if ((el = t.closest('[data-cal]'))) {
-      const d = Number(el.dataset.cal);
-      if (d === 0) calMonth = todayStr().slice(0, 7);
-      else { const [y, m] = calMonth.split('-').map(Number); calMonth = ymd(new Date(y, m - 1 + d, 1)).slice(0, 7); }
+    if ((el = t.closest('[data-cal]'))) { shiftCal(Number(el.dataset.cal)); return renderCalendar(); }
+    if ((el = t.closest('[data-calmode]'))) {
+      calMode = el.dataset.calmode;
+      if (calMode === 'month') calMonth = calDay.slice(0, 7);
+      try { localStorage.setItem(KEY + ':calMode', calMode); } catch (err) { /* ignore */ }
       return renderCalendar();
     }
+    if ((el = t.closest('[data-calpick]'))) { calDay = el.dataset.calpick; calMonth = calDay.slice(0, 7); calMode = 'day'; try { localStorage.setItem(KEY + ':calMode', 'day'); } catch (err) { /* ignore */ } return renderCalendar(); }
+    if ((el = t.closest('[data-new-post]'))) return newOnDate(el.dataset.newPost);
     if ((el = t.closest('[data-open-collab]'))) return openCollab(el.dataset.openCollab);
     if ((el = t.closest('[data-open]'))) return openPanel(el.dataset.open);
-    if ((el = t.closest('[data-day]'))) return newOnDate(el.dataset.day);
+    if ((el = t.closest('[data-day]'))) { if (el.classList.contains('cd-day')) return; return newOnDate(el.dataset.day); }
   });
 
   document.addEventListener('input', e => {
