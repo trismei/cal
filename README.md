@@ -16,7 +16,7 @@ Everything you add is saved **in your own browser, on your own device**. Nothing
 - **board**: 💡 idea → ✍️ scripted → 🎬 filmed → ✅ posted.
 - **calendar**: day, week and month views. Drag posts between days (and across weeks or months), and drag unscheduled ideas in from the ideas drawer.
 - **ideas**: your idea bank, a 6-idea generator, and 🎲 pick for me.
-- **collabs**: a brand pipeline with follow-up reminders, payment tracking, message templates, a rate card and a pitching playbook.
+- **collabs**: a brand pipeline (cards or an editable **sheet** you can sort, search and export as CSV) with follow-up reminders, payment tracking, message templates, a rate card and a pitching playbook.
 - **lines**: your signature lines, insertable straight into scripts.
 
 ## Make it yours

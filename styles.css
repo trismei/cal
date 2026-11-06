@@ -1514,3 +1514,69 @@ button.ws-cell:hover { background: var(--bg-2); }
   .panel-body { padding: 2px 26px 26px; }
   .scrim { background: rgba(43,43,43,.28); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
 }
+
+/* ================= collabs: sheet view ================= */
+.pipe-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.pipe-bar .stage-strip { flex: 1; min-width: 0; margin-bottom: 0; }
+.layout-switch { flex: none; }
+.layout-switch button { padding: 6px 12px; }
+.collab-grid.is-sheet { display: block; }
+
+.sheet-tools { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+.sheet-search { flex: 1; min-width: 200px; min-height: 38px; padding: 7px 12px; font-size: 14px; }
+.sheet-wrap {
+  overflow: auto; border: 1px solid var(--line); border-radius: var(--r-lg); background: #fff;
+  max-height: 70vh; -webkit-overflow-scrolling: touch;
+}
+.sheet { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; font-size: 13px; }
+.sheet th {
+  position: sticky; top: 0; z-index: 2; background: var(--bg-2);
+  border-bottom: 1px solid var(--line); text-align: left; padding: 0; font-weight: 550;
+}
+.sheet th.sticky-col { z-index: 3; }
+.sh-sort { width: 100%; text-align: left; padding: 10px 12px; font-size: 12px; color: var(--grey); white-space: nowrap; }
+.sh-sort:hover, .sh-sort.on { color: var(--ink); }
+.sheet td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 0; vertical-align: middle; background: #fff; }
+.sheet td:last-child, .sheet th:last-child { border-right: 0; }
+.sheet tbody tr:last-child td { border-bottom: 0; }
+.sheet tbody tr:hover td { background: #FFFBFC; }
+.sticky-col { position: sticky; left: 0; z-index: 1; box-shadow: 1px 0 0 var(--line); }
+.sheet th.sticky-col { background: var(--bg-2); }
+.sh-in {
+  width: 100%; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13px; color: var(--ink);
+  padding: 10px 12px; min-height: 42px; border-radius: 0;
+}
+.sh-in::placeholder { color: var(--grey-2); }
+.sh-in:focus { background: #fff; box-shadow: inset 0 0 0 2px var(--pink); }
+.sh-in[type=date] { padding: 8px 10px; }
+.sh-in.late { color: var(--pink-deep); font-weight: 550; }
+select.sh-in { cursor: pointer; appearance: none; -webkit-appearance: none; padding-right: 20px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--grey-2) 50%), linear-gradient(135deg, var(--grey-2) 50%, transparent 50%);
+  background-position: calc(100% - 12px) 52%, calc(100% - 8px) 52%; background-size: 4px 4px; background-repeat: no-repeat; }
+.sh-status { font-weight: 550; }
+.sh-status.s-pitch { background-color: #fff; }
+.sh-status.s-pitched { background-color: var(--pink-soft); }
+.sh-status.s-talking { background-color: #FFF6E3; }
+.sh-status.s-booked { background-color: #EEF0FB; }
+.sh-status.s-paid { background-color: var(--sage-soft); color: var(--sage-deep); }
+.sh-status.s-passed { color: var(--grey); }
+.sh-brand { display: flex; align-items: center; }
+.sh-brand .sh-in { font-weight: 600; padding-left: 4px; }
+.sh-open { flex: none; width: 30px; height: 30px; margin-left: 6px; border-radius: 8px; color: var(--grey-2); font-size: 13px; }
+.sh-open:hover { background: var(--pink-soft); color: var(--ink); }
+.sh-next { display: block; padding: 10px 12px; font-size: 12px; color: var(--grey); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+.sh-next.hot { color: var(--pink-deep); font-weight: 550; }
+.sh-next.done { color: var(--sage-deep); }
+.sh-paid { display: block; padding: 10px 12px; font-size: 12px; color: var(--grey); white-space: nowrap; }
+.sh-paid.done { color: var(--sage-deep); font-weight: 600; }
+.sh-paid.part { color: var(--ink); }
+.sh-empty { padding: 22px 16px !important; color: var(--grey); font-size: 14px; }
+.sheet-hint { margin: 8px 4px 0; }
+
+@media (max-width: 700px) {
+  .pipe-bar { flex-direction: column; align-items: stretch; }
+  .layout-switch { align-self: flex-start; }
+  .sheet-wrap { max-height: 64vh; margin: 0 -16px; border-radius: 0; border-left: 0; border-right: 0; }
+  .sheet th.sticky-col, .sheet td.sticky-col { min-width: 140px !important; }
+  .sh-in { font-size: 14px; }
+}

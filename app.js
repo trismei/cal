@@ -1010,6 +1010,8 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   let lineTarget = 'script', drawerCat = 'transitions';
   let collabFilter = 'active', collabTab = 'pipeline', tplId = DEFAULT_TEMPLATES[0].id;
   let showAllTpls = false;
+  let collabLayout = 'cards', sheetSort = { key: '', dir: 1 }, sheetQuery = '';
+  try { if (localStorage.getItem(KEY + ':collabLayout') === 'sheet') collabLayout = 'sheet'; } catch (e) { /* ignore */ }
   let editingMot = null, motMenu = null, whyEdit = false;
   let hypeSeed = Math.floor(Math.random() * 1e6);
   let genSeries = '', genAngle = 'howto', genStage = 'learn', batchSeries = '';
@@ -1939,11 +1941,15 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   function renderPipeline() {
     updateHero();
     renderNextUp();
-    const filters = [['active', 'active', state.collabs.filter(isActive).length],
+    const filters = [['active', 'active', state.collabs.filter(isActive).length], ['all', 'all', state.collabs.length],
       ...CSTATUSES.map(s => [s.id, `${s.emoji} ${s.label}`, state.collabs.filter(c => c.status === s.id).length])];
+    document.querySelectorAll('[data-clayout]').forEach(b => b.classList.toggle('on', b.dataset.clayout === collabLayout));
     $('#stage-strip').innerHTML = filters.filter(([id, , n]) => n || id === 'active' || id === collabFilter).map(([id, label, n]) =>
       `<button class="stage ${collabFilter === id ? 'on' : ''}" data-cfilter="${id}">${label}<span class="n">${n}</span></button>`).join('');
-    const list = state.collabs.filter(c => collabFilter === 'active' ? isActive(c) : c.status === collabFilter).sort(collabSort);
+    const list = state.collabs.filter(c => collabFilter === 'all' || (collabFilter === 'active' ? isActive(c) : c.status === collabFilter)).sort(collabSort);
+    const grid = $('#collab-grid');
+    grid.classList.toggle('is-sheet', collabLayout === 'sheet');
+    if (collabLayout === 'sheet') { renderSheet(list); return; }
     const empty = state.collabs.length
       ? '<div class="collab-empty"><p class="muted">nothing here right now</p></div>'
       : `<div class="collab-empty">
@@ -1951,6 +1957,119 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
           <p class="muted">${esc(PERSONAL.COLLAB_IDEAS || 'ideas: the apps, tools and places you already use and love')}</p>
         </div>`;
     $('#collab-grid').innerHTML = list.map(brandCard).join('') || empty;
+  }
+
+  // one row per brand, every cell editable in place
+  const SHEET_COLS = [
+    { key: 'brand', label: 'brand', type: 'text', w: 170, ph: 'brand name' },
+    { key: 'status', label: 'status', type: 'status', w: 128 },
+    { key: 'next', label: 'next step', type: 'next', w: 190 },
+    { key: 'type', label: 'type', type: 'select', w: 104, options: () => DEAL_TYPES.map(x => [x, x]) },
+    { key: 'series', label: 'series', type: 'select', w: 150, options: () => [['', '—'], ...state.pillars.map(x => [x, seriesShort(x)])] },
+    { key: 'product', label: 'product', type: 'text', w: 150, ph: 'product / feature' },
+    { key: 'contactName', label: 'contact', type: 'text', w: 130, ph: 'name' },
+    { key: 'contact', label: 'email / @', type: 'text', w: 190, ph: 'where to send it' },
+    { key: 'foundVia', label: 'found via', type: 'text', w: 170, ph: 'website, linkedin…' },
+    { key: 'why', label: 'video idea', type: 'text', w: 220, ph: 'the idea' },
+    { key: 'pitchedAt', label: 'pitched', type: 'date', w: 132 },
+    { key: 'followUp', label: 'follow up', type: 'date', w: 132 },
+    { key: 'amount', label: 'rate ₱', type: 'number', w: 100, ph: '0' },
+    { key: 'deliverables', label: 'deliverables', type: 'text', w: 170, ph: 'e.g. 2 tiktoks' },
+    { key: 'due', label: 'due', type: 'date', w: 132 },
+    { key: 'paid', label: 'paid', type: 'paid', w: 120 },
+    { key: 'notes', label: 'notes', type: 'text', w: 240, ph: 'notes' },
+  ];
+  const SHEET_TEXT_KEYS = SHEET_COLS.filter(c => ['text', 'number', 'date'].includes(c.type)).map(c => c.key);
+
+  function sheetValue(c, key) {
+    if (key === 'status') return CSTATUSES.findIndex(s => s.id === c.status);
+    if (key === 'next') return nextAction(c).text;
+    if (key === 'paid') return received(c);
+    if (key === 'amount') return amountOf(c);
+    return (c[key] || '').toString().toLowerCase();
+  }
+
+  function renderSheet(list) {
+    const q = sheetQuery.trim().toLowerCase();
+    let rows = q ? list.filter(c => [c.brand, c.product, c.contactName, c.contact, c.why, c.notes, c.foundVia, c.deliverables].join(' ').toLowerCase().includes(q)) : list.slice();
+    if (sheetSort.key) {
+      rows.sort((a, b) => {
+        const x = sheetValue(a, sheetSort.key), y = sheetValue(b, sheetSort.key);
+        if (x === y) return 0;
+        if (x === '' || x == null) return 1;
+        if (y === '' || y == null) return -1;
+        return (x > y ? 1 : -1) * sheetSort.dir;
+      });
+    }
+    const t = todayStr();
+    const cell = (c, col) => {
+      const v = c[col.key] == null ? '' : c[col.key];
+      const attrs = `data-sheet-cell="${c.id}|${col.key}" aria-label="${esc(col.label)} for ${esc(c.brand || 'new brand')}"`;
+      if (col.type === 'status') {
+        return `<select class="sh-in sh-status s-${c.status}" ${attrs}>${CSTATUSES.map(s => `<option value="${s.id}" ${c.status === s.id ? 'selected' : ''}>${s.emoji} ${s.label}</option>`).join('')}</select>`;
+      }
+      if (col.type === 'select') {
+        return `<select class="sh-in" ${attrs}>${col.options().map(([val, label]) => `<option value="${esc(val)}" ${v === val ? 'selected' : ''}>${esc(label)}</option>`).join('')}</select>`;
+      }
+      if (col.type === 'next') { const na = nextAction(c); return `<span class="sh-next ${na.cls}">${na.text}</span>`; }
+      if (col.type === 'paid') {
+        const a = amountOf(c), got = received(c);
+        return `<span class="sh-paid ${fullyPaid(c) ? 'done' : got ? 'part' : ''}">${fullyPaid(c) ? `✓ ${peso(got)}` : got ? `${peso(got)} of ${peso(a)}` : a ? 'not yet' : '—'}</span>`;
+      }
+      const late = col.type === 'date' && v && (col.key === 'followUp' ? followUpDue(c) : col.key === 'due' ? (v < t && c.status === 'booked') : false);
+      return `<input class="sh-in ${late ? 'late' : ''}" type="${col.type}" ${col.type === 'number' ? 'inputmode="numeric" min="0"' : ''} value="${esc(v)}" placeholder="${esc(col.ph || '')}" ${attrs}>`;
+    };
+    const head = SHEET_COLS.map(col => `<th style="min-width:${col.w}px" ${col.key === 'brand' ? 'class="sticky-col"' : ''}>
+        <button class="sh-sort ${sheetSort.key === col.key ? 'on' : ''}" data-sheet-sort="${col.key}">${col.label}${sheetSort.key === col.key ? (sheetSort.dir > 0 ? ' ↑' : ' ↓') : ''}</button>
+      </th>`).join('');
+    const body = rows.map(c => `<tr data-sheet-row="${c.id}">
+        ${SHEET_COLS.map(col => `<td ${col.key === 'brand' ? 'class="sticky-col"' : ''}>${col.key === 'brand'
+          ? `<div class="sh-brand"><button class="sh-open" data-open-collab="${c.id}" aria-label="open ${esc(c.brand || 'brand')}" title="open">↗</button>${cell(c, col)}</div>`
+          : cell(c, col)}</td>`).join('')}
+      </tr>`).join('');
+    $('#collab-grid').innerHTML = `
+      <div class="sheet-tools">
+        <input class="search sheet-search" id="sheet-search" type="search" placeholder="search brands, contacts, notes…" value="${esc(sheetQuery)}" aria-label="search the sheet">
+        <button class="ghost small" data-sheet-add>+ add brand</button>
+        <button class="ghost small" data-sheet-csv title="download for Google Sheets or Excel">export CSV</button>
+      </div>
+      <div class="sheet-wrap">
+        <table class="sheet">
+          <thead><tr>${head}</tr></thead>
+          <tbody>${body || `<tr><td class="sh-empty" colspan="${SHEET_COLS.length}">${state.collabs.length ? 'nothing matches. try "all" above, or clear the search.' : 'no brands yet. tap + add brand to start your pitch list.'}</td></tr>`}</tbody>
+        </table>
+      </div>
+      <p class="muted small-text sheet-hint">every cell saves as you type · click a column name to sort · ↗ opens the full brand card</p>`;
+    const s = $('#sheet-search');
+    s.addEventListener('input', () => {
+      sheetQuery = s.value;
+      const pos = s.selectionStart;
+      renderSheet(list);
+      const s2 = $('#sheet-search'); s2.focus(); s2.setSelectionRange(pos, pos);
+    });
+  }
+
+  function sheetCSV() {
+    const cols = SHEET_COLS.filter(c => c.key !== 'next');
+    const escCsv = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const rows = [cols.map(c => c.label)].concat(state.collabs.map(c => cols.map(col =>
+      col.key === 'status' ? CS[c.status].label : col.key === 'paid' ? received(c) : col.key === 'series' ? c.series : c[col.key]
+    )));
+    return rows.map(r => r.map(escCsv).join(',')).join('\n');
+  }
+
+  async function saveTextFile(filename, text, mime) {
+    if (window.claude && typeof window.claude.use === 'function') {
+      const downloads = await window.claude.use('downloads').catch(() => null);
+      if (downloads) { try { await downloads.save({ filename, data: text }); return true; } catch (e) { return false; } }
+      return copyText(text);
+    }
+    const url = URL.createObjectURL(new Blob([text], { type: mime }));
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return true;
   }
 
   function renderTemplateList() {
@@ -2023,7 +2142,13 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
           <div id="next-up-list"></div>
         </section>
         <section class="block">
-          <div class="stage-strip" id="stage-strip"></div>
+          <div class="pipe-bar">
+            <div class="stage-strip" id="stage-strip"></div>
+            <div class="seg-switch layout-switch" role="tablist">
+              <button data-clayout="cards">cards</button>
+              <button data-clayout="sheet">sheet</button>
+            </div>
+          </div>
           <div class="collab-grid" id="collab-grid"></div>
         </section>
       </div>
@@ -3479,6 +3604,31 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
     if ((el = t.closest('[data-copy-tpl]'))) return copyTemplate(el.dataset.copyTpl, el.dataset.cid);
     if ((el = t.closest('[data-follow-sent]'))) return markFollowSent(findC(el.dataset.followSent));
     if ((el = t.closest('[data-cmove]'))) { const [id, s] = el.dataset.cmove.split('|'); return setCStatus(findC(id), s); }
+    if ((el = t.closest('[data-clayout]'))) {
+      collabLayout = el.dataset.clayout;
+      try { localStorage.setItem(KEY + ':collabLayout', collabLayout); } catch (err) { /* ignore */ }
+      return renderPipeline();
+    }
+    if ((el = t.closest('[data-sheet-sort]'))) {
+      const k = el.dataset.sheetSort;
+      sheetSort = sheetSort.key === k ? (sheetSort.dir > 0 ? { key: k, dir: -1 } : { key: '', dir: 1 }) : { key: k, dir: 1 };
+      return renderPipeline();
+    }
+    if (t.closest('[data-sheet-add]')) {
+      const c = mkCollab({ brand: '' });
+      state.collabs.unshift(c);
+      persist();
+      if (!['active', 'all', 'pitch'].includes(collabFilter)) collabFilter = 'active';
+      sheetSort = { key: '', dir: 1 };
+      renderPipeline();
+      const inp = document.querySelector(`[data-sheet-cell="${c.id}|brand"]`);
+      if (inp) inp.focus();
+      return;
+    }
+    if (t.closest('[data-sheet-csv]')) {
+      saveTextFile(`pitch-list-${todayStr()}.csv`, sheetCSV(), 'text/csv').then(ok => toast(ok ? 'sheet exported. open it in Google Sheets 📄' : "couldn't export"));
+      return;
+    }
     if ((el = t.closest('[data-cfilter]'))) {
       collabFilter = el.dataset.cfilter;
       renderPipeline();
@@ -3576,6 +3726,16 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   });
 
   document.addEventListener('input', e => {
+    const cellRef = e.target instanceof Element && e.target.dataset.sheetCell;
+    if (cellRef) {
+      const [id, key] = cellRef.split('|');
+      const c = findC(id);
+      if (!c || !SHEET_TEXT_KEYS.includes(key)) return;
+      if (key === 'pitchedAt' || key === 'followUp' || key === 'due') { if (e.target.value && !isDate(e.target.value)) return; }
+      c[key] = e.target.value;
+      touch(c); persist();
+      return;
+    }
     const tgt = e.target;
     if (tgt instanceof Element && tgt.id === 'edit-mot-text') { autoGrow(tgt); return; }
     if (tgt instanceof Element && editingTodo && ['td-title', 'td-notes', 'td-due'].includes(tgt.id)) {
@@ -3618,6 +3778,18 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
     if (e.key === 'Enter') { e.preventDefault(); saveMot(editingMot); }
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); editingMot = null; renderHome(); }
   }, true);
+
+  // dropdowns + dates settle on change: status runs the usual stamps (pitched date, follow-ups, paid)
+  document.addEventListener('change', e => {
+    const cellRef = e.target instanceof Element && e.target.dataset.sheetCell;
+    if (!cellRef) return;
+    const [id, key] = cellRef.split('|');
+    const c = findC(id);
+    if (!c) return;
+    if (key === 'status') { setCStatus(c, e.target.value); return; }
+    if (key === 'type' || key === 'series') { c[key] = e.target.value; touch(c); persist(); return; }
+    if (['pitchedAt', 'followUp', 'due', 'amount'].includes(key)) { renderPipeline(); renderNudge(); }
+  });
 
   document.addEventListener('submit', e => {
     if (e.target.id === 'mot-add') {
