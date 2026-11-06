@@ -763,6 +763,21 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
       .replace(/(<\/h[34]>|<hr>|<\/[uo]l>)<br>/g, '$1')
       .replace(/^(\s|<br>)+|(\s|<br>)+$/g, '');
   }
+  // for the editor: each line becomes its own paragraph so it can breathe
+  function scriptDisplayHtml(html) {
+    if (!html) return '';
+    const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+    let out = '', line = '', has = false;
+    const flush = force => { if (has || force) out += `<div>${line || '<br>'}</div>`; line = ''; has = false; };
+    doc.body.childNodes.forEach(n => {
+      const tag = n.nodeType === 1 ? n.tagName : '';
+      if (tag === 'BR') { if (has) flush(); else flush(true); return; }
+      if (/^(H3|H4|UL|OL|HR)$/.test(tag)) { flush(); out += n.outerHTML; return; }
+      line += n.nodeType === 1 ? n.outerHTML : esc(n.nodeValue); has = true;
+    });
+    flush();
+    return out;
+  }
   function scriptHtmlToText(html) {
     const d = document.createElement('div');
     let n = 0;
@@ -2450,7 +2465,8 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
         const before = r.toString();
         document.execCommand('insertHTML', false, (before && !/\s$/.test(before) ? ' ' : '') + esc(text) + ' ');
       } else {
-        ed.innerHTML = (ed.textContent.trim() ? ed.innerHTML.replace(/(<br>)+$/, '') + '<br>' : '') + esc(text);
+        const cur = cleanScriptHtml(ed.innerHTML);
+        ed.innerHTML = scriptDisplayHtml((cur ? cur + '<br>' : '') + esc(text));
       }
       saveScript();
     }
@@ -3061,7 +3077,7 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   function fillPanel(p) {
     Object.entries(FIELDS).forEach(([k, sel]) => { const el = $(sel); if (el.value !== p[k]) el.value = p[k]; });
     growAll();
-    $('#f-script').innerHTML = p.scriptHtml;
+    $('#f-script').innerHTML = scriptDisplayHtml(p.scriptHtml);
     scriptRange = null;
     scriptMeta();
     $('#f-status').innerHTML = STATUSES.map(s => `<option value="${s.id}" ${p.status === s.id ? 'selected' : ''}>${s.emoji} ${s.label}</option>`).join('');
@@ -3162,7 +3178,7 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
   window.addEventListener('resize', () => { if (openId) growAll(); });
 
   const scriptEd = $('#f-script');
-  try { document.execCommand('styleWithCSS', false, false); } catch (e) { /* ignore */ }
+  try { document.execCommand('styleWithCSS', false, false); document.execCommand('defaultParagraphSeparator', false, 'div'); } catch (e) { /* ignore */ }
   scriptEd.addEventListener('focus', () => { lineTarget = 'script'; });
   scriptEd.addEventListener('input', saveScript);
   scriptEd.addEventListener('paste', e => {
@@ -3171,7 +3187,7 @@ I'd love to do a follow-up for [next season or launch]. Happy to send ideas!
     e.preventDefault();
     const html = cd.getData('text/html');
     const ins = html ? cleanScriptHtml(html) : textToScriptHtml(cd.getData('text/plain'));
-    if (ins) document.execCommand('insertHTML', false, ins);
+    if (ins) document.execCommand('insertHTML', false, /<br>|<h[34]>|<[uo]l>|<hr>/.test(ins) ? scriptDisplayHtml(ins) : ins);
     saveScript();
   });
   scriptEd.addEventListener('drop', e => e.preventDefault());
