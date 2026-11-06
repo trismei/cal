@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#FFFFFF">
+  <title>content calendar</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%23F8C8DC'/><text x='50' y='68' font-size='52' text-anchor='middle'>🎬</text></svg>">
+  <!-- home screen app: opens full screen with no browser bars -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="content cal">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header class="wrap top">
+    <div class="brand">
+      <h1>content calendar</h1>
+      <p class="sub" id="today-label"></p>
+    </div>
+    <div class="top-right">
+      <span class="sync-badge" id="sync-badge" hidden role="status"><i></i><span></span></span>
+      <button class="week-pill" id="week-pill" aria-label="this week's posts">
+        <span class="dots" id="week-dots" aria-hidden="true"></span>
+        <span id="week-count"></span>
+        <span class="streak" id="streak" hidden></span>
+      </button>
+      <button class="icon menu-btn" id="menu-btn" aria-label="goal and backup" aria-expanded="false" aria-haspopup="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+      </button>
+    </div>
+
+    <div class="menu" id="menu" hidden>
+      <div class="menu-sec">
+        <span class="label">this week</span>
+        <p id="menu-week"></p>
+        <p class="muted small-text" id="menu-streak"></p>
+        <button class="ghost small menu-batch" data-open-modal="batch">🗓 this week's batch plan</button>
+        <div class="goal-row">
+          <span>weekly posting goal</span>
+          <span class="stepper">
+            <button class="step" id="goal-minus" aria-label="lower weekly goal">−</button>
+            <b id="goal-val">3</b>
+            <button class="step" id="goal-plus" aria-label="raise weekly goal">+</button>
+          </span>
+        </div>
+      </div>
+      <div class="menu-sec">
+        <span class="label">sync + backup</span>
+        <p class="small-text sync-note" id="sync-note"></p>
+        <p class="muted small-text" id="backup-note"></p>
+        <div class="menu-actions">
+          <button class="ghost small" id="export-btn">export backup</button>
+          <button class="ghost small" id="import-btn">import backup</button>
+          <input type="file" id="import-file" accept="application/json,.json" hidden>
+        </div>
+      </div>
+      <p class="muted small-text menu-tip">tip: press <kbd>/</kbd> anywhere to add an idea</p>
+    </div>
+  </header>
+
+  <div class="sticky">
+    <div class="wrap sticky-inner">
+      <form id="quick-add" class="quick-add" autocomplete="off">
+        <input id="quick-input" enterkeyhint="done" placeholder="add an idea…" aria-label="quick add">
+        <button type="submit" class="add-btn" aria-label="add">+</button>
+      </form>
+      <nav class="tabs" id="top-tabs" aria-label="sections"></nav>
+    </div>
+  </div>
+
+  <main class="wrap">
+    <div class="nudge" id="nudge" hidden></div>
+    <section id="view-home" class="view" hidden></section>
+    <section id="view-todos" class="view" hidden></section>
+    <section id="view-board" class="view" hidden></section>
+    <section id="view-calendar" class="view" hidden></section>
+    <section id="view-ideas" class="view" hidden></section>
+    <section id="view-collabs" class="view" hidden></section>
+    <section id="view-lines" class="view" hidden></section>
+  </main>
+
+  <nav class="bottom-nav" id="bottom-nav" aria-label="sections"></nav>
+
+  <div class="scrim" id="scrim" hidden></div>
+
+  <!-- post panel -->
+  <aside class="panel" id="panel" role="dialog" aria-modal="true" aria-label="edit post" aria-hidden="true">
+    <div class="panel-head">
+      <span class="saved" id="saved-label">autosaves as you type</span>
+      <button class="icon" id="panel-close" aria-label="close">✕</button>
+    </div>
+    <div class="panel-body">
+      <textarea id="f-title" class="title-input" rows="1" placeholder="post title"></textarea>
+
+      <div class="seg" id="f-status"></div>
+      <div class="posted-row" id="posted-row" hidden>
+        <span class="muted small-text">posted on</span>
+        <input type="date" id="f-posted" aria-label="posted on">
+      </div>
+
+      <section class="psec">
+        <h4>the idea</h4>
+        <div class="field">
+          <span class="label">format</span>
+          <div class="pillars" id="f-format"></div>
+        </div>
+        <div class="field">
+          <span class="label">series</span>
+          <div class="pillars" id="f-pillar"></div>
+          <p class="tagline" id="f-tagline"></p>
+        </div>
+        <div class="field">
+          <div class="label-row">
+            <span class="label">angle</span>
+            <button class="link small" id="panel-helper">✨ angle helper</button>
+          </div>
+          <div class="angle">
+            <label class="angle-line"><span class="angle-pre no">instead of ❌</span><input id="f-instead" placeholder="the boring version"></label>
+            <label class="angle-line"><span class="angle-pre yes">try →</span><input id="f-try" placeholder="the story / angle"></label>
+          </div>
+        </div>
+        <label class="field">
+          <span class="label">the plan / what to show</span>
+          <textarea id="f-outline" rows="2" placeholder="what happens on screen"></textarea>
+        </label>
+      </section>
+
+      <section class="psec">
+        <h4>on camera</h4>
+        <label class="field">
+          <span class="label">hook</span>
+          <input id="f-hook" placeholder="the first line you say on camera">
+        </label>
+        <div class="field">
+          <div class="label-row">
+            <span class="label">script</span>
+            <button class="link small" id="lines-toggle">✦ signature lines</button>
+          </div>
+          <div class="line-drawer" id="line-drawer" hidden>
+            <div class="filters" id="line-cats"></div>
+            <div class="line-chips" id="line-chips"></div>
+            <p class="muted small-text">tap a line to drop it into your script (or your hook, if that's where you were typing)</p>
+          </div>
+          <textarea id="f-script" rows="9" placeholder="write it the way you'd say it…" aria-label="script"></textarea>
+        </div>
+      </section>
+
+      <section class="psec">
+        <h4>publishing</h4>
+        <div class="field">
+          <span class="label">post date</span>
+          <div class="date-row">
+            <input type="date" id="f-date" aria-label="post date">
+            <button class="link small" id="clear-date">clear</button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="label">sponsored?</span>
+          <div class="pillars" id="f-sponsor"></div>
+        </div>
+        <div id="f-sponsor-box" hidden>
+          <label class="field"><span class="label">brand</span><input id="f-brand" placeholder="who it's for"></label>
+          <div class="disclose">
+            <p class="section-label">disclosure checklist</p>
+            <div id="f-disclose"></div>
+          </div>
+        </div>
+        <label class="field">
+          <span class="label">notes / link to posted video</span>
+          <textarea id="f-notes" rows="3" placeholder="paste the tiktok link once it's up"></textarea>
+        </label>
+        <div id="note-link"></div>
+      </section>
+
+      <div class="panel-foot">
+        <span class="muted small-text" id="f-meta"></span>
+        <button class="danger" id="delete-post">delete post</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- collab panel -->
+  <aside class="panel" id="cpanel" role="dialog" aria-modal="true" aria-label="edit collab" aria-hidden="true">
+    <div class="panel-head">
+      <span class="saved" id="c-saved-label">autosaves as you type</span>
+      <button class="icon" id="cpanel-close" aria-label="close">✕</button>
+    </div>
+    <div class="panel-body">
+      <textarea id="c-brand" class="title-input" rows="1" placeholder="brand name"></textarea>
+
+      <div class="seg six" id="c-status"></div>
+      <div id="c-plan"></div>
+
+      <section class="psec">
+        <h4>the pitch</h4>
+        <label class="field">
+          <span class="label">product or feature</span>
+          <input id="c-product" placeholder="e.g. Notion Calendar, their AI assistant">
+        </label>
+        <label class="field">
+          <span class="label">what changed / why now (for the timely-news pitch)</span>
+          <input id="c-hook" placeholder="e.g. Gmail's new AI inbox, or back-to-school season">
+        </label>
+        <label class="field">
+          <span class="label">the video idea / outcome for your audience</span>
+          <textarea id="c-why" rows="2" placeholder="e.g. planning the whole week in 10 minutes"></textarea>
+        </label>
+        <div class="two">
+          <label class="field">
+            <span class="label">contact name</span>
+            <input id="c-contactName" placeholder="leave blank for “[brand] team”">
+          </label>
+          <label class="field">
+            <span class="label">email / @handle</span>
+            <input id="c-contact" placeholder="where to send it">
+          </label>
+        </div>
+        <label class="field">
+          <span class="label">how you found their email (optional)</span>
+          <input id="c-foundVia" placeholder="e.g. Your website lists this address for partnerships">
+        </label>
+      </section>
+
+      <section class="psec">
+        <h4>copy a message ✉️</h4>
+        <div id="c-tpls"></div>
+        <p class="muted small-text">✦ = the one for this stage · filled in with this brand + your details</p>
+      </section>
+
+      <section class="psec">
+        <h4>the deal</h4>
+        <div class="field">
+          <span class="label">deal type</span>
+          <div class="pillars" id="c-type"></div>
+        </div>
+        <div class="field">
+          <span class="label">fits which series</span>
+          <div class="pillars" id="c-series"></div>
+        </div>
+        <div class="two">
+          <label class="field">
+            <span class="label">agreed rate (₱)</span>
+            <input id="c-amount" type="number" inputmode="numeric" min="0" step="any" placeholder="0">
+          </label>
+          <label class="field">
+            <span class="label">deliverables / what you'll create</span>
+            <input id="c-deliverables" placeholder="e.g. 2 TikTok videos">
+          </label>
+        </div>
+        <div class="two">
+          <div class="field">
+            <span class="label">follow up on</span>
+            <input type="date" id="c-followUp" aria-label="follow up on">
+          </div>
+          <div class="field">
+            <span class="label">content due</span>
+            <input type="date" id="c-due" aria-label="content due">
+          </div>
+        </div>
+        <div class="cal-link" id="c-cal"></div>
+        <label class="field">
+          <span class="label">notes</span>
+          <textarea id="c-notes" rows="3" placeholder="what they said, briefs, payment terms…"></textarea>
+        </label>
+      </section>
+
+      <section class="psec" id="c-pay-sec" hidden>
+        <h4>getting paid 💳</h4>
+        <div id="c-pay"></div>
+        <div class="two">
+          <label class="field">
+            <span class="label">invoice #</span>
+            <input id="c-invoiceNo" placeholder="e.g. 2026-004">
+          </label>
+          <div class="field">
+            <span class="label">invoice due</span>
+            <input type="date" id="c-invoiceDue" aria-label="invoice due">
+          </div>
+        </div>
+      </section>
+
+      <div class="panel-foot">
+        <span class="muted small-text" id="c-meta"></span>
+        <button class="danger" id="delete-collab">delete</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- angle helper -->
+  <div class="modal-wrap" id="helper" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-label="angle helper">
+      <div class="panel-head">
+        <span class="label">✨ angle helper</span>
+        <button class="icon" id="helper-close" aria-label="close">✕</button>
+      </div>
+      <p class="helper-title" id="helper-title"></p>
+      <ol class="questions" id="helper-qs"></ol>
+      <button class="link small" id="helper-more">other questions ↻</button>
+      <div class="angle helper-angle">
+        <label class="angle-line"><span class="angle-pre no">instead of ❌</span><input id="h-instead" placeholder="the boring version"></label>
+        <label class="angle-line"><span class="angle-pre yes">try →</span><input id="h-try" placeholder="the story / angle"></label>
+      </div>
+      <p class="vibe"><span class="label">vibe check</span> will they feel like they caught up with a friend ☕, found something interesting ✨, and left a little smarter 🧠?</p>
+      <button class="primary" id="helper-done">done</button>
+    </div>
+  </div>
+
+  <!-- weekly batch -->
+  <div class="modal-wrap" id="batch-modal" hidden>
+    <div class="modal wide" role="dialog" aria-modal="true" aria-label="this week's batch">
+      <div class="panel-head">
+        <span class="label">🗓 this week's batch · about 3 hours</span>
+        <button class="icon" data-close-modal aria-label="close">✕</button>
+      </div>
+      <p class="modal-title" id="batch-progress"></p>
+      <div id="batch-blocks"></div>
+      <p class="muted small-text">put the blocks in your calendar like meetings, e.g. plan + shoot on Tuesday night, edit + schedule on Thursday.</p>
+      <section class="msec">
+        <h4>one topic → three posts</h4>
+        <input id="b-topic" class="minput" placeholder="this week's topic, e.g. automating my inbox">
+        <div class="pillars" id="batch-series"></div>
+        <label class="angle-line"><span class="angle-pre">teach</span><input id="b-teach" placeholder="e.g. 3 inbox filters that save me an hour"></label>
+        <label class="angle-line"><span class="angle-pre">story</span><input id="b-story" placeholder="e.g. the email that made me finally fix this"></label>
+        <label class="angle-line"><span class="angle-pre">answer</span><input id="b-answer" placeholder="answer one question from the comments"></label>
+        <button class="primary" id="b-add">add to my ideas</button>
+      </section>
+      <details class="msec acc-lite">
+        <summary>shoot day checklist</summary>
+        <div id="batch-shots"></div>
+      </details>
+    </div>
+  </div>
+
+  <!-- 6-idea generator -->
+  <div class="modal-wrap" id="gen-modal" hidden>
+    <div class="modal wide" role="dialog" aria-modal="true" aria-label="6-idea generator">
+      <div class="panel-head">
+        <span class="label">✦ 6-idea generator</span>
+        <button class="icon" data-close-modal aria-label="close">✕</button>
+      </div>
+      <p class="modal-title">one series × one angle × one stage = six ideas</p>
+      <p class="muted small-text">do one group whenever the bank runs low. 4 angles × 3 stages = 12 groups = 72 ideas over time.</p>
+      <p class="mlabel">series</p>
+      <div class="pillars" id="gen-series"></div>
+      <p class="mlabel">angle</p>
+      <div class="pillars" id="gen-angles"></div>
+      <p class="mlabel">audience stage</p>
+      <div class="pillars" id="gen-stages"></div>
+      <p class="gen-hint" id="gen-hint"></p>
+      <div class="angle" id="gen-prompts"></div>
+      <button class="primary" id="g-add">add to my ideas</button>
+    </div>
+  </div>
+
+  <!-- in-app dialog -->
+  <div class="modal-wrap ask-wrap" id="ask" hidden>
+    <div class="modal ask" role="alertdialog" aria-modal="true" aria-labelledby="ask-title">
+      <p class="ask-title" id="ask-title"></p>
+      <p class="ask-body" id="ask-body"></p>
+      <input class="minput" id="ask-input" hidden>
+      <div class="ask-actions">
+        <button class="ghost" id="ask-cancel">cancel</button>
+        <button class="primary" id="ask-ok">ok</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sync-curtain" aria-hidden="true"><div><span class="sync-spin"></span>syncing your calendar…</div></div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="personal.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
